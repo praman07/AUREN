@@ -1,0 +1,90 @@
+import { PipelineEventType, PipelineEventPayload } from '../../domain/events/PipelineEvents';
+import { PipelineState } from '../../domain/state/ProcessingStateMachine';
+import { PipelineStatusService } from './PipelineStatusService';
+import { QueueManager } from '../../infrastructure/queue/QueueManager';
+
+export class DocumentProcessingOrchestrator {
+  constructor(
+    private readonly statusService: PipelineStatusService,
+    private readonly queueManager: QueueManager
+  ) {}
+
+  public async handleEvent(eventType: PipelineEventType, payload: PipelineEventPayload): Promise<void> {
+    switch (eventType) {
+      case PipelineEventType.DOCUMENT_UPLOADED:
+        await this.startPipeline(payload);
+        break;
+      case PipelineEventType.OCR_COMPLETED:
+        await this.onOcrCompleted(payload);
+        break;
+      case PipelineEventType.OCR_FAILED:
+        await this.failPipeline(payload, PipelineState.FAILED, 'OCR Failed');
+        break;
+      case PipelineEventType.CHUNKING_COMPLETED:
+        await this.onChunkingCompleted(payload);
+        break;
+      case PipelineEventType.CHUNKING_FAILED:
+        await this.failPipeline(payload, PipelineState.FAILED, 'Chunking Failed');
+        break;
+      case PipelineEventType.EMBEDDING_COMPLETED:
+        await this.onEmbeddingCompleted(payload);
+        break;
+      case PipelineEventType.EMBEDDING_FAILED:
+        await this.failPipeline(payload, PipelineState.PARTIALLY_FAILED, 'Embedding Failed');
+        break;
+      case PipelineEventType.INDEXING_COMPLETED:
+        await this.onIndexingCompleted(payload);
+        break;
+      case PipelineEventType.INDEXING_FAILED:
+        await this.failPipeline(payload, PipelineState.PARTIALLY_FAILED, 'Qdrant Indexing Failed');
+        break;
+      default:
+        console.warn(`Orchestrator ignored unknown event: ${eventType}`);
+    }
+  }
+
+  private async startPipeline(payload: PipelineEventPayload) {
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.QUEUED);
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.OCR_PENDING);
+    await this.queueManager.ocrQueue.add('extract-text', payload);
+  }
+
+  private async onOcrCompleted(payload: PipelineEventPayload) {
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.OCR_COMPLETED);
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.CHUNKING_PENDING);
+    await this.queueManager.chunkingQueue.add('create-chunks', payload);
+  }
+
+  private async onChunkingCompleted(payload: PipelineEventPayload) {
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.CHUNKING_COMPLETED);
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.EMBEDDING_PENDING);
+    await this.queueManager.embeddingQueue.add('generate-embeddings', payload);
+  }
+
+  private async onEmbeddingCompleted(payload: PipelineEventPayload) {
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.EMBEDDING_COMPLETED);
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.INDEXING_PENDING);
+    await this.queueManager.qdrantIndexingQueue.add('index-vectors', payload);
+  }
+
+  private async onIndexingCompleted(payload: PipelineEventPayload) {
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.READY);
+  }
+
+  private async failPipeline(payload: PipelineEventPayload, failureState: PipelineState, reason: string) {
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, failureState, `${reason}: ${payload.error}`);
+  }
+
+  public async resumePipeline(documentId: string, organizationId: string): Promise<void> {
+    const currentState = await this.statusService.getCurrentState(documentId);
+    
+    // Determine where to resume based on the last successful state
+    // E.g. If FAILED but we know it finished OCR, jump straight to CHUNKING_PENDING
+    // (Requires looking up the last successful processing job in reality)
+    console.log(`Resuming pipeline for ${documentId} from state ${currentState}`);
+  }
+
+  public async cancelPipeline(documentId: string, organizationId: string): Promise<void> {
+    await this.statusService.transitionState(documentId, organizationId, PipelineState.CANCELLED, 'Cancelled by user');
+  }
+}

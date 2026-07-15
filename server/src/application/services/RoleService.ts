@@ -1,0 +1,1 @@
+import { UnitOfWork } from '../../infrastructure/database/UnitOfWork';\nimport { IEventPublisher } from '../interfaces/IEventPublisher';\n\nexport class RoleService {\n  constructor(\n    private readonly unitOfWork: UnitOfWork,\n    private readonly eventPublisher: IEventPublisher\n  ) {}\n}
