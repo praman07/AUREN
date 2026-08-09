@@ -1,6 +1,7 @@
 import { createApp } from './app';
 import { env } from './shared/config/env';
 import { logger } from './shared/logger';
+import { WorkerManager } from './infrastructure/queue/WorkerManager';
 
 const startServer = async () => {
   try {
@@ -9,6 +10,9 @@ const startServer = async () => {
     const server = app.listen(env.PORT, () => {
       logger.info(`🚀 EKOS Backend is running on http://localhost:${env.PORT} in ${env.NODE_ENV} mode`);
     });
+
+    const { workerManager } = require('./di');
+    workerManager.start();
 
     // Graceful Shutdown
     const shutdown = async (signal: string) => {
