@@ -87,4 +87,22 @@ export class AIGateway implements IAIGateway {
         throw new Error(`Capability ${capability} is not implemented in Gateway routing`);
     }
   }
+
+  public async streamChat(request: { messages: any[], context: any }): Promise<AsyncGenerator<string, void, unknown>> {
+    const providerName = process.env.CHAT_PROVIDER || 'ollama';
+    const provider = this.providerFactory.getChatProvider(providerName);
+    return provider.streamChat(request.messages);
+  }
+
+  public async embed(request: { texts: string[], context: any }): Promise<{ model: string, dimension: number, embeddings: number[][] }> {
+    const providerName = process.env.EMBEDDING_PROVIDER || 'ollama';
+    const provider = this.providerFactory.getEmbeddingProvider(providerName);
+    const embeddings = await provider.embedBatch(request.texts);
+    return {
+      model: providerName,
+      dimension: provider.getDimensions(),
+      embeddings
+    };
+  }
 }
+

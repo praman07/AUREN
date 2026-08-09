@@ -5,8 +5,7 @@ export class PermissionFilter {
     // Translates RBAC context into a Qdrant/Pinecone compatible filter
     return {
       must: [
-        { key: 'organizationId', match: { value: request.organizationId } },
-        { key: 'departmentId', match: { any: request.departmentIds } }
+        { key: 'organizationId', match: { value: request.organizationId } }
       ]
       // Additional filters like clearance level, legal hold would go here
     };

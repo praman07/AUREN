@@ -4,6 +4,7 @@ import { CapabilityResolver } from './CapabilityResolver';
 import { LocalOCRProvider } from '../adapters/ocr/LocalOCRProvider';
 import { OllamaEmbeddingProvider } from '../adapters/embedding/OllamaEmbeddingProvider';
 import { QdrantVectorStoreProvider } from '../adapters/vector/QdrantVectorStoreProvider';
+import { OllamaChatProvider } from '../adapters/chat/OllamaChatProvider';
 
 export class ProviderFactory {
   private registry: ProviderRegistry;
@@ -14,9 +15,15 @@ export class ProviderFactory {
   }
 
   private registerDefaults() {
-    this.registry.registerOCR('local', () => new LocalOCRProvider());
-    this.registry.registerEmbedding('ollama', () => new OllamaEmbeddingProvider());
-    this.registry.registerVectorStore('qdrant', () => new QdrantVectorStoreProvider());
+    const localOcr = new LocalOCRProvider();
+    const ollamaEmbedding = new OllamaEmbeddingProvider();
+    const qdrantVector = new QdrantVectorStoreProvider();
+    const ollamaChat = new OllamaChatProvider();
+
+    this.registry.registerOCR('local', () => localOcr);
+    this.registry.registerEmbedding('ollama', () => ollamaEmbedding);
+    this.registry.registerVectorStore('qdrant', () => qdrantVector);
+    this.registry.registerChat('ollama', () => ollamaChat);
   }
 
   getOCRProvider(name: string = process.env.OCR_PROVIDER || 'local') {
@@ -34,6 +41,12 @@ export class ProviderFactory {
   getVectorStoreProvider(name: string = process.env.VECTOR_STORE_PROVIDER || 'qdrant') {
     const provider = this.registry.vectorStoreProviders.get(name);
     if (!provider) throw new Error(`Vector Store Provider '${name}' not registered`);
+    return provider();
+  }
+
+  getChatProvider(name: string = process.env.CHAT_PROVIDER || 'ollama') {
+    const provider = this.registry.chatProviders.get(name);
+    if (!provider) throw new Error(`Chat Provider '${name}' not registered`);
     return provider();
   }
 }

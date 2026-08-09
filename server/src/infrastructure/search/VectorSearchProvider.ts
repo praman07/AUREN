@@ -16,13 +16,14 @@ export class VectorSearchProvider {
     
     // 2. Search vector store
     const vectorStore = this.providerFactory.getVectorStoreProvider();
-    const results = await vectorStore.search('chunks', queryVector, request.limit, filter);
+    const collectionName = `org_${request.organizationId}_docs`;
+    const results = await vectorStore.search(collectionName, queryVector, request.limit, filter);
     
     // Translate provider results to RetrievedChunk
     return results.map(r => ({
-      id: r.id,
+      id: r.payload?.chunkId || r.id,
       documentId: r.payload.documentId,
-      content: r.payload.content,
+      content: r.payload.text || r.payload.content || '',
       score: r.score,
       vectorScore: r.score,
       keywordScore: 0,

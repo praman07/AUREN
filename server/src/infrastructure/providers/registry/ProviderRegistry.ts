@@ -18,4 +18,9 @@ export class ProviderRegistry {
   registerVectorStore(name: string, constructor: () => IVectorStoreProvider) {
     this.vectorStoreProviders.set(name, constructor);
   }
+
+  public readonly chatProviders = new Map<string, () => any>();
+  registerChat(name: string, constructor: () => any) {
+    this.chatProviders.set(name, constructor);
+  }
 }
