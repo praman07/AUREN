@@ -1,5 +1,5 @@
 import { BaseWorker } from '../BaseWorker';
-import { PipelineEventPayload } from '../../domain/events/PipelineEvents';
+import { PipelineEventPayload } from '../../../domain/events/PipelineEvents';
 import { OcrService } from '../../../application/services/OcrService';
 
 export class OcrWorker extends BaseWorker<PipelineEventPayload> {

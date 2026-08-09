@@ -1,5 +1,5 @@
 import { BaseWorker } from '../BaseWorker';
-import { PipelineEventPayload } from '../../domain/events/PipelineEvents';
+import { PipelineEventPayload } from '../../../domain/events/PipelineEvents';
 import { QdrantIndexingService } from '../../../application/services/QdrantIndexingService';
 
 export class QdrantIndexingWorker extends BaseWorker<PipelineEventPayload> {

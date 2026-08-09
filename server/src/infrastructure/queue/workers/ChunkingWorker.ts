@@ -1,5 +1,5 @@
 import { BaseWorker } from '../BaseWorker';
-import { PipelineEventPayload } from '../../domain/events/PipelineEvents';
+import { PipelineEventPayload } from '../../../domain/events/PipelineEvents';
 import { ChunkingService } from '../../../application/services/ChunkingService';
 
 export class ChunkingWorker extends BaseWorker<PipelineEventPayload> {
