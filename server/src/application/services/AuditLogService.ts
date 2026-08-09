@@ -1,1 +1,9 @@
-import { UnitOfWork } from '../../infrastructure/database/UnitOfWork';\nimport { IEventPublisher } from '../interfaces/IEventPublisher';\n\nexport class AuditLogService {\n  constructor(\n    private readonly unitOfWork: UnitOfWork,\n    private readonly eventPublisher: IEventPublisher\n  ) {}\n}
+import { UnitOfWork } from '../../infrastructure/database/UnitOfWork';
+import { IEventPublisher } from '../interfaces/IEventPublisher';
+
+export class AuditLogService {
+  constructor(
+    private readonly unitOfWork: UnitOfWork,
+    private readonly eventPublisher: IEventPublisher
+  ) {}
+}

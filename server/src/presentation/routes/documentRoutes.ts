@@ -13,34 +13,22 @@ import { UploadService } from '../../application/services/UploadService';
 import { LocalStorageProvider } from '../../infrastructure/storage/LocalStorageProvider';
 import { uploadMiddleware } from '../middlewares/uploadMiddleware';
 
-// Mock Event Publisher
-const mockEventPublisher = { publish: async (t: string, p: any) => console.log(`[Event] ${t}`, p) };
-
 const router = Router();
+import { documentService, uploadService } from '../../di';
 
-// Dependency Injection Assembly
-const documentRepository = new DocumentRepository();
-const documentVersionRepository = new DocumentVersionRepository();
-const auditLogRepository = new AuditLogRepository();
-const unitOfWork = new UnitOfWork();
-const storageProvider = new LocalStorageProvider();
-
-const documentService = new DocumentService(documentRepository, auditLogRepository, unitOfWork, mockEventPublisher);
-const uploadService = new UploadService(storageProvider, documentRepository, documentVersionRepository, auditLogRepository, unitOfWork, mockEventPublisher);
-
-const documentController = new DocumentController(documentService);
-const uploadController = new UploadController(uploadService);
+const documentControllerInstance = new DocumentController(documentService);
+const uploadControllerInstance = new UploadController(uploadService);
 
 // Apply auth middleware to all document routes
 router.use(requireAuth);
 
-router.post('/upload', uploadMiddleware.single('file'), uploadController.uploadDocument);
+router.post('/upload', uploadMiddleware.single('file'), uploadControllerInstance.uploadDocument);
 
-router.get('/', documentController.getDocuments);
-router.get('/:id', validateRequest(DocumentIdParamSchema), documentController.getDocumentById);
-router.post('/', validateRequest(CreateDocumentSchema), documentController.createDocument);
-router.patch('/:id', validateRequest(UpdateDocumentSchema), documentController.updateDocument);
-router.delete('/:id', validateRequest(DocumentIdParamSchema), documentController.deleteDocument);
-router.post('/:id/restore', validateRequest(DocumentIdParamSchema), documentController.restoreDocument);
+router.get('/', documentControllerInstance.getDocuments);
+router.get('/:id', validateRequest(DocumentIdParamSchema), documentControllerInstance.getDocumentById);
+router.post('/', validateRequest(CreateDocumentSchema), documentControllerInstance.createDocument);
+router.patch('/:id', validateRequest(UpdateDocumentSchema), documentControllerInstance.updateDocument);
+router.delete('/:id', validateRequest(DocumentIdParamSchema), documentControllerInstance.deleteDocument);
+router.post('/:id/restore', validateRequest(DocumentIdParamSchema), documentControllerInstance.restoreDocument);
 
 export default router;

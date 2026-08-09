@@ -13,16 +13,26 @@ export class PipelineStatusService {
   ) {}
 
   async getCurrentState(documentId: string): Promise<PipelineState> {
-    // In a real implementation, 'pipelineState' should be a column on Document or DocumentVersion
-    // Mocking the lookup for now:
     const doc = await prisma.document.findUnique({ where: { id: documentId } });
     if (!doc) throw new BaseException('Document not found', 404);
     
-    // Fallback if not tracked yet
+    // Look up latest audit log for this document
+    const latestLog = await prisma.auditLog.findFirst({
+      where: { resourceId: documentId, action: 'UPDATE' as any },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (latestLog && (latestLog.metadata as any)?.newState) {
+      console.log(`[PipelineStatus] Found latest state for ${documentId}: ${(latestLog.metadata as any).newState}`);
+      return (latestLog.metadata as any).newState as PipelineState;
+    }
+
+    console.log(`[PipelineStatus] No latest state found for ${documentId}, returning UPLOADED`);
     return PipelineState.UPLOADED; 
   }
 
   async transitionState(documentId: string, organizationId: string, targetState: PipelineState, reason?: string): Promise<void> {
+    console.log(`[PipelineStatus] Transitioning ${documentId} to ${targetState}`);
     await this.unitOfWork.execute(async (tx) => {
       const currentState = await this.getCurrentState(documentId);
       const newState = ProcessingStateMachine.transition(currentState, targetState);

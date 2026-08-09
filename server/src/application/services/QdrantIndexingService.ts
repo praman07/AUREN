@@ -15,7 +15,7 @@ export class QdrantIndexingService {
       // Also fetch the document to get the authoritative organizationId
       const document = await prisma.document.findUnique({
         where: { id: payload.documentId },
-        select: { organizationId: true, departmentId: true, sensitivityLevel: true, classification: true, ownerId: true }
+        select: { organizationId: true }
       });
 
       if (!document) {
@@ -63,20 +63,17 @@ export class QdrantIndexingService {
       for (let i = 0; i < chunks.length; i += batchSize) {
         const batch = chunks.slice(i, i + batchSize);
         
+        const crypto = require('crypto');
         // Build Qdrant points
         const points = batch.map(chunk => ({
-          id: chunk.id, // Deterministic stable ID
+          id: crypto.randomUUID(), // Qdrant requires UUID or Unsigned Int
           vector: chunk.vectorData,
           payload: {
             // Zero Trust Metadata (Authoritative)
             organizationId: document.organizationId,
-            departmentId: document.departmentId,
             documentId: chunk.documentId,
             documentVersionId: chunk.versionId,
             chunkId: chunk.id,
-            ownerId: document.ownerId,
-            sensitivityLevel: document.sensitivityLevel,
-            classification: document.classification,
             
             // Context Metadata
             pageNumbers: chunk.pageNumbers,
@@ -89,7 +86,7 @@ export class QdrantIndexingService {
         }));
 
         // Upsert batch
-        await vectorStoreProvider.upsertPoints(collectionName, points);
+        await vectorStoreProvider.upsert(collectionName, points);
 
         // Update database state AFTER successful Qdrant acknowledgement
         const updatePromises = batch.map(chunk => {

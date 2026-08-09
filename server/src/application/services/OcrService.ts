@@ -3,17 +3,22 @@ import { PipelineEventType, PipelineEventPayload } from '../../domain/events/Pip
 import { prisma } from '../../infrastructure/database/prisma';
 import { DocumentProcessingOrchestrator } from './DocumentProcessingOrchestrator';
 
+import { IStorageProvider } from '../../infrastructure/storage/IStorageProvider';
+
 export class OcrService {
   constructor(
     private readonly providerFactory: ProviderFactory,
-    private readonly orchestrator: DocumentProcessingOrchestrator
+    private readonly orchestrator: DocumentProcessingOrchestrator,
+    private readonly storageProvider: IStorageProvider
   ) {}
 
   public async processDocument(payload: PipelineEventPayload): Promise<void> {
     try {
-      // 1. Fetch File (Stubbed: usually from S3/LocalStorageProvider)
-      // const fileBuffer = await this.storageProvider.download(payload.versionId);
-      const fileBuffer = Buffer.from('mock document content');
+      const docVersion = await prisma.documentVersion.findUnique({ where: { id: payload.versionId } });
+      if (!docVersion) throw new Error('Document version not found');
+
+      // 1. Fetch File
+      const fileBuffer = await this.storageProvider.download(docVersion.s3Key);
       const mimeType = 'application/pdf'; // Stubbed
 
       // 2. Resolve OCR Provider
@@ -21,16 +26,16 @@ export class OcrService {
 
       // 3. Extract Text
       const result = await ocrProvider.extractText(fileBuffer, mimeType);
+      
+      // Save the extracted text back to storage
+      const txtPath = docVersion.s3Key + '.txt';
+      await this.storageProvider.upload(Buffer.from(result.text, 'utf8'), txtPath);
 
       // 4. Persist Raw Text & Metadata
       await prisma.documentVersion.update({
         where: { id: payload.versionId },
         data: {
-          // Assuming there is a text payload or object storage reference for the raw text
-          // For now we could store it in a new table DocumentText or update metadata
-          metadata: {
-            ocr: result.metadata
-          }
+          updatedAt: new Date()
         }
       });
 
@@ -38,10 +43,12 @@ export class OcrService {
       // because putting multi-MB strings in Postgres is bad practice.
 
       // 5. Emit OCR_COMPLETED to Orchestrator
+      console.log('[OcrService] Orchestrator instance:', typeof this.orchestrator, this.orchestrator);
       await this.orchestrator.handleEvent(PipelineEventType.OCR_COMPLETED, payload);
 
     } catch (error: any) {
       console.error('OCR Processing Failed:', error);
+      console.log('[OcrService catch] Orchestrator instance:', typeof this.orchestrator, this.orchestrator);
       // Emit OCR_FAILED to Orchestrator
       await this.orchestrator.handleEvent(PipelineEventType.OCR_FAILED, {
         ...payload,

@@ -16,13 +16,13 @@ export class ContextBuilder {
       
       selectedChunks.push(chunk);
       currentTokens += chunkTokens;
-      citations.add(`[Doc ${chunk.documentId}, Pg ${chunk.metadata.page || 1}]`);
+      citations.add(`[Doc ${chunk.documentId}, Pg ${chunk.metadata?.page || 1}]`);
     }
 
     // Sort selected chunks by Document ID and Page to preserve narrative flow
     selectedChunks.sort((a, b) => {
       if (a.documentId === b.documentId) {
-        return (a.metadata.page || 0) - (b.metadata.page || 0);
+        return (a.metadata?.page || 0) - (b.metadata?.page || 0);
       }
       return a.documentId.localeCompare(b.documentId);
     });

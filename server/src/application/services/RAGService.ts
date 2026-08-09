@@ -1,5 +1,5 @@
 import { IRetrievalEngine } from './RetrievalEngine';
-import { AIGateway } from '../../infrastructure/providers/gateway/AIGateway';
+import { AIGateway } from '../../infrastructure/gateway/AIGateway';
 import { prisma } from '../../infrastructure/database/prisma';
 
 export interface RAGRequest {
@@ -82,6 +82,23 @@ export class RAGService {
       }));
 
       onEvent({ type: 'sources', data: sources });
+
+      if (sources.length === 0) {
+        const noContextMsg = "I couldn't find relevant information in your organization's documents.";
+        onEvent({ type: 'token', data: noContextMsg });
+        onEvent({ type: 'completed', data: { conversationId: chatId } });
+        
+        await prisma.message.create({
+          data: {
+            chatId,
+            userId: null,
+            organizationId: request.organizationId,
+            role: 'assistant',
+            content: noContextMsg
+          }
+        });
+        return;
+      }
 
       // 4. Call AIGateway
       // Simulate historical context

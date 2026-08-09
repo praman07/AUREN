@@ -39,7 +39,6 @@ export class UploadService {
     try {
       // 3. Database Transaction
       await this.unitOfWork.execute(async (tx) => {
-        // Create Document
         const doc = await this.documentRepository.create({
           id: documentId,
           title: filename,
@@ -53,12 +52,10 @@ export class UploadService {
         // Create Version
         await this.documentVersionRepository.create({
           id: versionId,
-          versionNumber: 1,
-          fileUri,
-          sizeBytes,
-          mimeType,
-          document: { connect: { id: documentId } },
-          createdBy: { connect: { id: userId } }
+          version: 1,
+          s3Key: storagePath,
+          hash: 'mock-hash',
+          document: { connect: { id: documentId } }
         }, tx);
 
         // Create Audit Log

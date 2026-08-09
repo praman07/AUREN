@@ -1,7 +1,7 @@
 import { PipelineEventType, PipelineEventPayload } from '../../domain/events/PipelineEvents';
 import { prisma } from '../../infrastructure/database/prisma';
 import { DocumentProcessingOrchestrator } from './DocumentProcessingOrchestrator';
-import { AIGateway } from '../../infrastructure/providers/gateway/AIGateway';
+import { AIGateway } from '../../infrastructure/gateway/AIGateway';
 
 export class EmbeddingService {
   constructor(

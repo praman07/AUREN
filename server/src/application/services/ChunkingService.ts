@@ -3,9 +3,12 @@ import { prisma } from '../../infrastructure/database/prisma';
 import { DocumentProcessingOrchestrator } from './DocumentProcessingOrchestrator';
 import { ChunkStrategy } from '../../domain/chunking/ChunkStrategy';
 
+import { IStorageProvider } from '../../infrastructure/storage/IStorageProvider';
+
 export class ChunkingService {
   constructor(
-    private readonly orchestrator: DocumentProcessingOrchestrator
+    private readonly orchestrator: DocumentProcessingOrchestrator,
+    private readonly storageProvider: IStorageProvider
   ) {}
 
   public async processDocument(payload: PipelineEventPayload): Promise<void> {
@@ -14,13 +17,12 @@ export class ChunkingService {
       const docVersion = await prisma.documentVersion.findUnique({ where: { id: payload.versionId } });
       if (!docVersion) throw new Error('Document version not found');
 
-      // Mock raw text retrieval (in reality, fetched from S3 using metadata.rawTextPath)
-      const rawText = "Section 1\n\nThis is some extracted text.\n\nSection 2\n\nMore text here.";
+      const txtBuffer = await this.storageProvider.download(docVersion.s3Key + '.txt');
+      const rawText = txtBuffer.toString('utf8');
 
-      // 2. Detect Sections (Stubbed logic)
+      // 2. Detect Sections (Stubbed logic, but using real text)
       const sections = [
-        { title: 'Section 1', content: 'This is some extracted text.', pageNumbers: '1' },
-        { title: 'Section 2', content: 'More text here.', pageNumbers: '1' }
+        { title: 'Full Document', content: rawText, pageNumbers: '1' }
       ];
 
       // 3. Generate High-Quality Chunks
