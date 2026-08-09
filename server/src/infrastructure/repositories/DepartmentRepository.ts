@@ -1,1 +1,14 @@
-import { Department, Prisma } from '@prisma/client';\nimport { TenantAwareRepository } from './TenantAwareRepository';\nimport { IBaseRepository } from './interfaces/IBaseRepository';\nimport { prisma } from '../database/prisma';\n\nexport interface IDepartmentRepository extends IBaseRepository<Department, Prisma.DepartmentCreateInput, Prisma.DepartmentUpdateInput> {\n  findByTenantAndId(id: string, organizationId: string): Promise<Department | null>;\n}\n\nexport class DepartmentRepository extends TenantAwareRepository<Department, Prisma.DepartmentCreateInput, Prisma.DepartmentUpdateInput> implements IDepartmentRepository {\n  constructor(tx: any = prisma) {\n    super(tx.department, 'Department');\n  }\n}
+import { Department, Prisma } from '@prisma/client';
+import { TenantAwareRepository } from './TenantAwareRepository';
+import { IBaseRepository } from './interfaces/IBaseRepository';
+import { prisma } from '../database/prisma';
+
+export interface IDepartmentRepository extends IBaseRepository<Department, Prisma.DepartmentCreateInput, Prisma.DepartmentUpdateInput> {
+  findByTenantAndId(id: string, organizationId: string): Promise<Department | null>;
+}
+
+export class DepartmentRepository extends TenantAwareRepository<Department, Prisma.DepartmentCreateInput, Prisma.DepartmentUpdateInput> implements IDepartmentRepository {
+  constructor(tx: any = prisma) {
+    super(tx.department, 'Department');
+  }
+}

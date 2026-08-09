@@ -1,1 +1,14 @@
-import { Document, Prisma } from '@prisma/client';\nimport { TenantAwareRepository } from './TenantAwareRepository';\nimport { IBaseRepository } from './interfaces/IBaseRepository';\nimport { prisma } from '../database/prisma';\n\nexport interface IDocumentRepository extends IBaseRepository<Document, Prisma.DocumentCreateInput, Prisma.DocumentUpdateInput> {\n  findByTenantAndId(id: string, organizationId: string): Promise<Document | null>;\n}\n\nexport class DocumentRepository extends TenantAwareRepository<Document, Prisma.DocumentCreateInput, Prisma.DocumentUpdateInput> implements IDocumentRepository {\n  constructor(tx: any = prisma) {\n    super(tx.document, 'Document');\n  }\n}
+import { Document, Prisma } from '@prisma/client';
+import { TenantAwareRepository } from './TenantAwareRepository';
+import { IBaseRepository } from './interfaces/IBaseRepository';
+import { prisma } from '../database/prisma';
+
+export interface IDocumentRepository extends IBaseRepository<Document, Prisma.DocumentCreateInput, Prisma.DocumentUpdateInput> {
+  findByTenantAndId(id: string, organizationId: string): Promise<Document | null>;
+}
+
+export class DocumentRepository extends TenantAwareRepository<Document, Prisma.DocumentCreateInput, Prisma.DocumentUpdateInput> implements IDocumentRepository {
+  constructor(tx: any = prisma) {
+    super(tx.document, 'Document');
+  }
+}

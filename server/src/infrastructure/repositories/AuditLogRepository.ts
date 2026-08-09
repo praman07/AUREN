@@ -1,1 +1,14 @@
-import { AuditLog, Prisma } from '@prisma/client';\nimport { TenantAwareRepository } from './TenantAwareRepository';\nimport { IBaseRepository } from './interfaces/IBaseRepository';\nimport { prisma } from '../database/prisma';\n\nexport interface IAuditLogRepository extends IBaseRepository<AuditLog, Prisma.AuditLogCreateInput, Prisma.AuditLogUpdateInput> {\n  findByTenantAndId(id: string, organizationId: string): Promise<AuditLog | null>;\n}\n\nexport class AuditLogRepository extends TenantAwareRepository<AuditLog, Prisma.AuditLogCreateInput, Prisma.AuditLogUpdateInput> implements IAuditLogRepository {\n  constructor(tx: any = prisma) {\n    super(tx.auditLog, 'AuditLog');\n  }\n}
+import { AuditLog, Prisma } from '@prisma/client';
+import { TenantAwareRepository } from './TenantAwareRepository';
+import { IBaseRepository } from './interfaces/IBaseRepository';
+import { prisma } from '../database/prisma';
+
+export interface IAuditLogRepository extends IBaseRepository<AuditLog, Prisma.AuditLogCreateInput, Prisma.AuditLogUpdateInput> {
+  findByTenantAndId(id: string, organizationId: string): Promise<AuditLog | null>;
+}
+
+export class AuditLogRepository extends TenantAwareRepository<AuditLog, Prisma.AuditLogCreateInput, Prisma.AuditLogUpdateInput> implements IAuditLogRepository {
+  constructor(tx: any = prisma) {
+    super(tx.auditLog, 'AuditLog');
+  }
+}

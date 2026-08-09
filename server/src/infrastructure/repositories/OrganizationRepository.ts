@@ -1,1 +1,14 @@
-import { Organization, Prisma } from '@prisma/client';\nimport { BaseRepository } from './BaseRepository';\nimport { IBaseRepository } from './interfaces/IBaseRepository';\nimport { prisma } from '../database/prisma';\n\nexport interface IOrganizationRepository extends IBaseRepository<Organization, Prisma.OrganizationCreateInput, Prisma.OrganizationUpdateInput> {\n\n}\n\nexport class OrganizationRepository extends BaseRepository<Organization, Prisma.OrganizationCreateInput, Prisma.OrganizationUpdateInput> implements IOrganizationRepository {\n  constructor(tx: any = prisma) {\n    super(tx.organization, 'Organization');\n  }\n}
+import { Organization, Prisma } from '@prisma/client';
+import { BaseRepository } from './BaseRepository';
+import { IBaseRepository } from './interfaces/IBaseRepository';
+import { prisma } from '../database/prisma';
+
+export interface IOrganizationRepository extends IBaseRepository<Organization, Prisma.OrganizationCreateInput, Prisma.OrganizationUpdateInput> {
+
+}
+
+export class OrganizationRepository extends BaseRepository<Organization, Prisma.OrganizationCreateInput, Prisma.OrganizationUpdateInput> implements IOrganizationRepository {
+  constructor(tx: any = prisma) {
+    super(tx.organization, 'Organization');
+  }
+}

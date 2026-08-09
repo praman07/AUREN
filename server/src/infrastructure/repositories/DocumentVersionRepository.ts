@@ -1,1 +1,14 @@
-import { DocumentVersion, Prisma } from '@prisma/client';\nimport { TenantAwareRepository } from './TenantAwareRepository';\nimport { IBaseRepository } from './interfaces/IBaseRepository';\nimport { prisma } from '../database/prisma';\n\nexport interface IDocumentVersionRepository extends IBaseRepository<DocumentVersion, Prisma.DocumentVersionCreateInput, Prisma.DocumentVersionUpdateInput> {\n  findByTenantAndId(id: string, organizationId: string): Promise<DocumentVersion | null>;\n}\n\nexport class DocumentVersionRepository extends TenantAwareRepository<DocumentVersion, Prisma.DocumentVersionCreateInput, Prisma.DocumentVersionUpdateInput> implements IDocumentVersionRepository {\n  constructor(tx: any = prisma) {\n    super(tx.documentVersion, 'DocumentVersion');\n  }\n}
+import { DocumentVersion, Prisma } from '@prisma/client';
+import { TenantAwareRepository } from './TenantAwareRepository';
+import { IBaseRepository } from './interfaces/IBaseRepository';
+import { prisma } from '../database/prisma';
+
+export interface IDocumentVersionRepository extends IBaseRepository<DocumentVersion, Prisma.DocumentVersionCreateInput, Prisma.DocumentVersionUpdateInput> {
+  findByTenantAndId(id: string, organizationId: string): Promise<DocumentVersion | null>;
+}
+
+export class DocumentVersionRepository extends TenantAwareRepository<DocumentVersion, Prisma.DocumentVersionCreateInput, Prisma.DocumentVersionUpdateInput> implements IDocumentVersionRepository {
+  constructor(tx: any = prisma) {
+    super(tx.documentVersion, 'DocumentVersion');
+  }
+}

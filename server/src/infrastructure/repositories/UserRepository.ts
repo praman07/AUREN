@@ -1,1 +1,14 @@
-import { User, Prisma } from '@prisma/client';\nimport { TenantAwareRepository } from './TenantAwareRepository';\nimport { IBaseRepository } from './interfaces/IBaseRepository';\nimport { prisma } from '../database/prisma';\n\nexport interface IUserRepository extends IBaseRepository<User, Prisma.UserCreateInput, Prisma.UserUpdateInput> {\n  findByTenantAndId(id: string, organizationId: string): Promise<User | null>;\n}\n\nexport class UserRepository extends TenantAwareRepository<User, Prisma.UserCreateInput, Prisma.UserUpdateInput> implements IUserRepository {\n  constructor(tx: any = prisma) {\n    super(tx.user, 'User');\n  }\n}
+import { User, Prisma } from '@prisma/client';
+import { TenantAwareRepository } from './TenantAwareRepository';
+import { IBaseRepository } from './interfaces/IBaseRepository';
+import { prisma } from '../database/prisma';
+
+export interface IUserRepository extends IBaseRepository<User, Prisma.UserCreateInput, Prisma.UserUpdateInput> {
+  findByTenantAndId(id: string, organizationId: string): Promise<User | null>;
+}
+
+export class UserRepository extends TenantAwareRepository<User, Prisma.UserCreateInput, Prisma.UserUpdateInput> implements IUserRepository {
+  constructor(tx: any = prisma) {
+    super(tx.user, 'User');
+  }
+}

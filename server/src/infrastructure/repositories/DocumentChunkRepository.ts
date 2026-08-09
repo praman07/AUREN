@@ -1,1 +1,14 @@
-import { DocumentChunk, Prisma } from '@prisma/client';\nimport { TenantAwareRepository } from './TenantAwareRepository';\nimport { IBaseRepository } from './interfaces/IBaseRepository';\nimport { prisma } from '../database/prisma';\n\nexport interface IDocumentChunkRepository extends IBaseRepository<DocumentChunk, Prisma.DocumentChunkCreateInput, Prisma.DocumentChunkUpdateInput> {\n  findByTenantAndId(id: string, organizationId: string): Promise<DocumentChunk | null>;\n}\n\nexport class DocumentChunkRepository extends TenantAwareRepository<DocumentChunk, Prisma.DocumentChunkCreateInput, Prisma.DocumentChunkUpdateInput> implements IDocumentChunkRepository {\n  constructor(tx: any = prisma) {\n    super(tx.documentChunk, 'DocumentChunk');\n  }\n}
+import { DocumentChunk, Prisma } from '@prisma/client';
+import { TenantAwareRepository } from './TenantAwareRepository';
+import { IBaseRepository } from './interfaces/IBaseRepository';
+import { prisma } from '../database/prisma';
+
+export interface IDocumentChunkRepository extends IBaseRepository<DocumentChunk, Prisma.DocumentChunkCreateInput, Prisma.DocumentChunkUpdateInput> {
+  findByTenantAndId(id: string, organizationId: string): Promise<DocumentChunk | null>;
+}
+
+export class DocumentChunkRepository extends TenantAwareRepository<DocumentChunk, Prisma.DocumentChunkCreateInput, Prisma.DocumentChunkUpdateInput> implements IDocumentChunkRepository {
+  constructor(tx: any = prisma) {
+    super(tx.documentChunk, 'DocumentChunk');
+  }
+}
