@@ -18,7 +18,8 @@ export class ChunkStrategy {
     const crypto = require('crypto');
     const hash = crypto.createHash('sha256');
     hash.update(`${documentId}:${versionId}:${chunkIndex}:${text}`);
-    return hash.digest('hex');
+    const hex = hash.digest('hex');
+    return `${hex.substring(0,8)}-${hex.substring(8,12)}-${hex.substring(12,16)}-${hex.substring(16,20)}-${hex.substring(20,32)}`;
   }
 
   public generateChunks(sections: RawSection[], documentId: string, versionId: string, organizationId: string): any[] {

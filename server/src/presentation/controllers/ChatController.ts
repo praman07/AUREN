@@ -15,6 +15,21 @@ export class ChatController {
         return;
       }
 
+      const userDepartments = user.departments || [];
+      const explicitDepartments = validatedData.departmentIds;
+      let finalDepartmentIds: string[] = [];
+
+      if (explicitDepartments.length > 0) {
+        // Prevent IDOR: Ensure explicit departments are a subset of user's allowed departments
+        finalDepartmentIds = explicitDepartments.filter((id: string) => userDepartments.includes(id));
+        if (finalDepartmentIds.length !== explicitDepartments.length) {
+          res.status(403).json({ success: false, error: 'Forbidden: Access to one or more requested departments is denied.' });
+          return;
+        }
+      } else {
+        finalDepartmentIds = userDepartments;
+      }
+
       // Setup SSE
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -27,9 +42,7 @@ export class ChatController {
           conversationId: validatedData.conversationId,
           organizationId: user.organizationId,
           userId: user.id,
-          departmentIds: validatedData.departmentIds.length > 0 
-            ? validatedData.departmentIds 
-            : user.departments || []
+          departmentIds: finalDepartmentIds
         },
         (event) => {
           res.write(`data: ${JSON.stringify(event)}\n\n`);

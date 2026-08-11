@@ -72,6 +72,7 @@ export class DocumentProcessingOrchestrator {
   }
 
   private async failPipeline(payload: PipelineEventPayload, failureState: PipelineState, reason: string) {
+    console.error(`[DocumentProcessingOrchestrator] Pipeline failed for doc ${payload.documentId}: ${reason}`, payload.error);
     await this.statusService.transitionState(payload.documentId, payload.organizationId, failureState, `${reason}: ${payload.error}`);
   }
 

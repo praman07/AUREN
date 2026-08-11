@@ -41,12 +41,14 @@ export class PipelineStatusService {
       // await tx.document.update({ where: { id: documentId }, data: { pipelineState: newState } });
 
       // 2. Write Audit Log
-      await this.auditLogRepository.create({
-        action: 'UPDATE',
-        organization: { connect: { id: organizationId } },
-        resourceId: documentId,
-        metadata: { previousState: currentState, newState, reason }
-      }, tx);
+      await tx.auditLog.create({
+        data: {
+          action: 'UPDATE',
+          organization: { connect: { id: organizationId } },
+          resourceId: documentId,
+          metadata: { previousState: currentState, newState, reason }
+        }
+      });
     });
   }
 }

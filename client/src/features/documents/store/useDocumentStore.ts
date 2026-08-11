@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Document } from '../types';
+import type { Document } from '../api/documentQueries';
 
 interface DocumentState {
   selectedDocumentId: string | null;

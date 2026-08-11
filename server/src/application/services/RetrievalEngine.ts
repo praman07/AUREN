@@ -4,6 +4,7 @@ import { BM25SearchProvider } from '../../infrastructure/search/BM25SearchProvid
 import { HybridRanker } from '../../domain/retrieval/HybridRanker';
 import { ContextBuilder } from '../../domain/retrieval/ContextBuilder';
 import { PromptBuilder } from '../../domain/retrieval/PromptBuilder';
+import { prisma } from '../../infrastructure/database/prisma';
 
 export interface IRetrievalEngine {
   search(request: SearchRequest): Promise<SearchResponse>;
@@ -31,9 +32,30 @@ export class RetrievalEngine implements IRetrievalEngine {
     // 2. Hybrid Ranking & Deduplication
     const rankedChunks = this.ranker.rankAndMerge(vectorResults, keywordResults, request.limit);
 
+    // 3. Enrich with Document Metadata
+    const documentIds = [...new Set(rankedChunks.map(c => c.documentId))];
+    const documents = await prisma.document.findMany({
+      where: {
+        id: { in: documentIds },
+        organizationId: request.organizationId
+      },
+      select: {
+        id: true,
+        title: true
+      }
+    });
+
+    const docMap = new Map(documents.map(d => [d.id, d.title]));
+
+    const enrichedChunks = rankedChunks.map(chunk => {
+      chunk.metadata = chunk.metadata || {};
+      chunk.metadata.documentTitle = docMap.get(chunk.documentId) || 'Unknown Document';
+      return chunk;
+    });
+
     return {
-      chunks: rankedChunks,
-      totalFound: rankedChunks.length,
+      chunks: enrichedChunks,
+      totalFound: enrichedChunks.length,
       executionTimeMs: Date.now() - startTime
     };
   }

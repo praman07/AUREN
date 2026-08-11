@@ -26,25 +26,32 @@ export const EnterpriseAuthProvider: React.FC<{ children: React.ReactNode }> = (
       }
 
       try {
-        // In the future:
-        // const token = await getToken();
-        // const response = await axios.post('/api/v1/auth/sync', {}, { headers: { Authorization: `Bearer ${token}` }});
-        
-        // Mocking the Backend Sync Delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const enterpriseUser = {
-          id: user.id,
-          email: user.primaryEmailAddress?.emailAddress || '',
-          firstName: user.firstName || 'Authorized',
-          lastName: user.lastName || 'User',
-          organizationId: 'org_123',
-          departmentId: 'dept_it',
-          roles: ['ORG_ADMIN'] as any,
-        };
+        const token = await getToken();
+        if (!token) {
+          throw new Error('No token available');
+        }
 
+        const response = await fetch('/api/v1/auth/me', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Backend authorization failed');
+        }
+
+        const data = await response.json();
+        const enterpriseUser = data.data;
+
+        // Optionally merge with clerk user fields if needed, but we trust backend
         if (isMounted) {
-          setAuth(true, enterpriseUser);
+          setAuth(true, {
+            ...enterpriseUser,
+            email: user.primaryEmailAddress?.emailAddress || '',
+            firstName: user.firstName || 'Authorized',
+            lastName: user.lastName || 'User',
+          });
           setLoaded(true);
         }
       } catch (error) {

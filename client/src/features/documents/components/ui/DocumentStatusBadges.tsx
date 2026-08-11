@@ -1,5 +1,5 @@
 import React from 'react';
-import { AIStatus, Classification, SharingStatus } from '../../types';
+import type { AIStatus, Classification, SharingStatus } from '../../types';
 
 interface BadgeProps {
   children: React.ReactNode;

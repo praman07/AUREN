@@ -1,9 +1,11 @@
 import React from 'react';
 import { useSecurityStore } from '../../store/useSecurityStore';
-import { Building2, Shield, Users, Database } from 'lucide-react';
+import { Building2, Users, Database } from 'lucide-react';
+import { useDepartments } from '../../api/departmentQueries';
 
 export const DepartmentsTable: React.FC = () => {
-  const { departments, selectedDepartmentId, setSelectedDepartmentId } = useSecurityStore();
+  const { selectedDepartmentId, setSelectedDepartmentId } = useSecurityStore();
+  const { data: departments, isLoading, isError } = useDepartments();
 
   const getSecurityColor = (level: string) => {
     switch (level) {
@@ -16,6 +18,18 @@ export const DepartmentsTable: React.FC = () => {
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
+
+  if (isLoading) {
+    return <div className="p-4 text-xs text-muted-foreground text-center">Loading departments...</div>;
+  }
+
+  if (isError || !departments) {
+    return <div className="p-4 text-xs text-red-500 text-center">Failed to load departments.</div>;
+  }
+
+  if (departments.length === 0) {
+    return <div className="p-4 text-xs text-muted-foreground text-center border border-border rounded-md">No departments found in your organization.</div>;
+  }
 
   return (
     <div className="border border-border rounded-md bg-white overflow-hidden shadow-sm">

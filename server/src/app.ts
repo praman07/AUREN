@@ -9,6 +9,12 @@ import { requestLogger } from './presentation/middlewares/requestLogger';
 import documentRoutes from './presentation/routes/documentRoutes';
 import semanticSearchRoutes from './presentation/routes/semanticSearchRoutes';
 import chatRoutes from './presentation/routes/chatRoutes';
+import userRoutes from './presentation/routes/userRoutes';
+import departmentRoutes from './presentation/routes/departmentRoutes';
+import roleRoutes from './presentation/routes/roleRoutes';
+import auditLogRoutes from './presentation/routes/auditLogRoutes';
+import processingJobRoutes from './presentation/routes/processingJobRoutes';
+import authRoutes from './presentation/routes/authRoutes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -36,9 +42,15 @@ export const createApp = (): Application => {
     res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
   });
 
+  app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/documents', documentRoutes);
   app.use('/api/v1/semantic-search', semanticSearchRoutes);
   app.use('/api/v1/chat', chatRoutes);
+  app.use('/api/v1/users', userRoutes);
+  app.use('/api/v1/departments', departmentRoutes);
+  app.use('/api/v1/roles', roleRoutes);
+  app.use('/api/v1/audit-logs', auditLogRoutes);
+  app.use('/api/v1/jobs', processingJobRoutes);
 
   // 5. Error Handling
   app.use(errorHandler);

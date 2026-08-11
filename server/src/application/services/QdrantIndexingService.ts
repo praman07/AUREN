@@ -12,10 +12,14 @@ export class QdrantIndexingService {
   public async processDocument(payload: PipelineEventPayload): Promise<void> {
     try {
       // 1. Fetch chunks where embeddingStatus = COMPLETED and indexingStatus != COMPLETED
-      // Also fetch the document to get the authoritative organizationId
       const document = await prisma.document.findUnique({
         where: { id: payload.documentId },
-        select: { organizationId: true }
+        select: { 
+          organizationId: true,
+          departmentId: true,
+          visibility: true,
+          ownerId: true
+        }
       });
 
       if (!document) {
@@ -66,11 +70,14 @@ export class QdrantIndexingService {
         const crypto = require('crypto');
         // Build Qdrant points
         const points = batch.map(chunk => ({
-          id: crypto.randomUUID(), // Qdrant requires UUID or Unsigned Int
+          id: chunk.id, // Qdrant point ID uses Chunk ID
           vector: chunk.vectorData,
           payload: {
             // Zero Trust Metadata (Authoritative)
             organizationId: document.organizationId,
+            departmentId: document.departmentId,
+            visibility: document.visibility,
+            ownerId: document.ownerId,
             documentId: chunk.documentId,
             documentVersionId: chunk.versionId,
             chunkId: chunk.id,

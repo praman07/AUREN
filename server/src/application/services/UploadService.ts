@@ -39,33 +39,39 @@ export class UploadService {
     try {
       // 3. Database Transaction
       await this.unitOfWork.execute(async (tx) => {
-        const doc = await this.documentRepository.create({
-          id: documentId,
-          title: filename,
-          mimeType,
-          sizeBytes,
-          classification: 'UNCLASSIFIED', // Default
-          organization: { connect: { id: organizationId } },
-          owner: { connect: { id: userId } }
-        }, tx);
+        const doc = await tx.document.create({
+          data: {
+            id: documentId,
+            title: filename,
+            mimeType,
+            sizeBytes,
+            classification: 'UNCLASSIFIED', // Default
+            organization: { connect: { id: organizationId } },
+            owner: { connect: { id: userId } }
+          }
+        });
 
         // Create Version
-        await this.documentVersionRepository.create({
-          id: versionId,
-          version: 1,
-          s3Key: storagePath,
-          hash: 'mock-hash',
-          document: { connect: { id: documentId } }
-        }, tx);
+        await tx.documentVersion.create({
+          data: {
+            id: versionId,
+            version: 1,
+            s3Key: storagePath,
+            hash: 'mock-hash',
+            document: { connect: { id: documentId } }
+          }
+        });
 
         // Create Audit Log
-        await this.auditLogRepository.create({
-          action: 'CREATE',
-          organization: { connect: { id: organizationId } },
-          actor: { connect: { id: userId } },
-          resourceId: documentId,
-          metadata: { filename, versionId, fileUri }
-        }, tx);
+        await tx.auditLog.create({
+          data: {
+            action: 'CREATE',
+            organization: { connect: { id: organizationId } },
+            actor: { connect: { id: userId } },
+            resourceId: documentId,
+            metadata: { filename, versionId, fileUri }
+          }
+        });
       });
 
       // 4. Dispatch Domain Events (Async)

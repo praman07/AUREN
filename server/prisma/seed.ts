@@ -10,6 +10,7 @@ async function main() {
     data: {
       name: 'EKOS Enterprise',
       domain: 'ekos.app',
+      industry: 'CORPORATE',
     },
   });
 

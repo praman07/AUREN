@@ -1,25 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DataTable } from './data-table/DataTable';
 import { columns } from './data-table/columns';
 import { TableToolbar } from './data-table/TableToolbar';
-import { mockDocuments } from '../mock/documents.mock';
-import { Document } from '../types';
+import { useDocuments } from '../api/documentQueries';
 import { UploadDialog } from './upload/UploadDialog';
 import { DocumentDetailsDrawer } from './details/DocumentDetailsDrawer';
 
 export const DocumentsPage: React.FC = () => {
-  const [data, setData] = useState<Document[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedCount, setSelectedCount] = useState(0);
-
-  // Simulate network latency
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setData(mockDocuments);
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data, isLoading, error } = useDocuments();
+  const [selectedCount] = useState(0);
+  const [globalFilter, setGlobalFilter] = useState('');
 
   return (
     <>
@@ -37,14 +27,26 @@ export const DocumentsPage: React.FC = () => {
 
         {/* Main Table Container */}
         <div className="flex-1 flex flex-col min-h-0">
-          <TableToolbar selectedCount={selectedCount} />
+          <TableToolbar 
+            selectedCount={selectedCount} 
+            globalFilter={globalFilter}
+            setGlobalFilter={setGlobalFilter}
+          />
           
           {isLoading ? (
             <div className="w-full h-96 border border-border rounded-md bg-slate-50 animate-pulse flex items-center justify-center">
               <span className="text-muted-foreground text-sm">Loading enterprise data...</span>
             </div>
+          ) : error ? (
+            <div className="w-full h-96 border border-danger/30 rounded-md bg-danger/5 flex items-center justify-center text-danger text-sm">
+              Failed to load documents: {error.message}
+            </div>
           ) : (
-            <DataTable columns={columns} data={data} />
+            <DataTable 
+              columns={columns} 
+              data={data || []} 
+              globalFilter={globalFilter}
+            />
           )}
         </div>
         

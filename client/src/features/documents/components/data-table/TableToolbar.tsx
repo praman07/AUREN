@@ -1,12 +1,14 @@
 import React from 'react';
-import { Search, Filter, Plus, RefreshCw, Download, Trash2, FolderInput } from 'lucide-react';
+import { Search, Filter, Plus, Download, Trash2, FolderInput } from 'lucide-react';
 import { useUploadStore } from '../../store/useUploadStore';
 
 interface TableToolbarProps {
   selectedCount: number;
+  globalFilter: string;
+  setGlobalFilter: (value: string) => void;
 }
 
-export const TableToolbar: React.FC<TableToolbarProps> = ({ selectedCount }) => {
+export const TableToolbar: React.FC<TableToolbarProps> = ({ selectedCount, globalFilter, setGlobalFilter }) => {
   const { setIsOpen } = useUploadStore();
 
   return (
@@ -16,6 +18,8 @@ export const TableToolbar: React.FC<TableToolbarProps> = ({ selectedCount }) => 
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             placeholder="Search documents..."
+            value={globalFilter ?? ''}
+            onChange={(e) => setGlobalFilter(e.target.value)}
             className="w-full h-9 pl-9 pr-3 rounded-md border border-border text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all bg-white"
           />
         </div>

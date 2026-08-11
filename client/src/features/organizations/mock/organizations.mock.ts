@@ -1,4 +1,4 @@
-import { Organization } from '../types';
+import type { Organization } from '../types';
 
 const pastDate = (days: number) => new Date(Date.now() - 1000 * 60 * 60 * 24 * days).toISOString();
 

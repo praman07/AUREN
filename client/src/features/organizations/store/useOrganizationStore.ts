@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Organization } from '../types';
+import type { Organization } from '../types';
 import { mockOrganizations } from '../mock/organizations.mock';
 
 interface OrganizationState {
@@ -15,7 +15,7 @@ interface OrganizationState {
   archiveOrganization: (id: string) => Promise<void>;
 }
 
-export const useOrganizationStore = create<OrganizationState>((set, get) => ({
+export const useOrganizationStore = create<OrganizationState>((set) => ({
   organizations: [...mockOrganizations],
   selectedOrgId: null,
   isCreateModalOpen: false,

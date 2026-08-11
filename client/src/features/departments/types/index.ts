@@ -21,6 +21,7 @@ export interface Role {
   id: string;
   name: string;
   isCustom: boolean;
+  isSystem: boolean;
 }
 
 export interface Group {

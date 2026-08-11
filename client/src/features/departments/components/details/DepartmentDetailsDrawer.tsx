@@ -1,11 +1,15 @@
 import React from 'react';
 import { useSecurityStore } from '../../store/useSecurityStore';
-import { X, Building2, Shield, Users, Database, BrainCircuit, Activity } from 'lucide-react';
+import { X, Building2, Shield, Users, Database, BrainCircuit, Activity, Trash2, RotateCcw } from 'lucide-react';
+import { useDepartments, useArchiveDepartment, useRestoreDepartment } from '../../api/departmentQueries';
 
 export const DepartmentDetailsDrawer: React.FC = () => {
-  const { selectedDepartmentId, setSelectedDepartmentId, departments } = useSecurityStore();
+  const { selectedDepartmentId, setSelectedDepartmentId } = useSecurityStore();
+  const { data: departments } = useDepartments();
+  const archiveMutation = useArchiveDepartment();
+  const restoreMutation = useRestoreDepartment();
   
-  const dept = departments.find(d => d.id === selectedDepartmentId);
+  const dept = departments?.find(d => d.id === selectedDepartmentId);
   const isOpen = !!dept;
 
   if (!isOpen || !dept) return null;
@@ -90,13 +94,36 @@ export const DepartmentDetailsDrawer: React.FC = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-border bg-slate-50 flex items-center justify-end gap-2">
-          <button className="h-8 px-4 border border-border bg-white text-foreground rounded-md text-xs font-medium hover:bg-slate-100 transition-colors focus:ring-2 focus:ring-primary focus:outline-none">
-            Manage Members
-          </button>
-          <button className="h-8 px-4 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary-hover transition-colors shadow-sm focus:ring-2 focus:ring-primary focus:outline-none">
-            Edit Security Policy
-          </button>
+        <div className="p-4 border-t border-border bg-slate-50 flex items-center justify-between gap-2">
+          <div>
+            {dept.status === 'ACTIVE' ? (
+              <button 
+                onClick={() => archiveMutation.mutate(dept.id, { onSuccess: () => setSelectedDepartmentId(null) })}
+                disabled={archiveMutation.isPending}
+                className="h-8 px-3 border border-red-200 bg-red-50 text-red-700 rounded-md text-xs font-medium hover:bg-red-100 transition-colors focus:ring-2 focus:ring-red-500 focus:outline-none flex items-center gap-1.5"
+              >
+                <Trash2 size={14} />
+                {archiveMutation.isPending ? 'Archiving...' : 'Archive'}
+              </button>
+            ) : (
+              <button 
+                onClick={() => restoreMutation.mutate(dept.id, { onSuccess: () => setSelectedDepartmentId(null) })}
+                disabled={restoreMutation.isPending}
+                className="h-8 px-3 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-md text-xs font-medium hover:bg-emerald-100 transition-colors focus:ring-2 focus:ring-emerald-500 focus:outline-none flex items-center gap-1.5"
+              >
+                <RotateCcw size={14} />
+                {restoreMutation.isPending ? 'Restoring...' : 'Restore'}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="h-8 px-4 border border-border bg-white text-foreground rounded-md text-xs font-medium hover:bg-slate-100 transition-colors focus:ring-2 focus:ring-primary focus:outline-none">
+              Manage Members
+            </button>
+            <button className="h-8 px-4 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary-hover transition-colors shadow-sm focus:ring-2 focus:ring-primary focus:outline-none">
+              Edit Security Policy
+            </button>
+          </div>
         </div>
       </div>
     </>

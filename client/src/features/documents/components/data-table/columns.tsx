@@ -1,8 +1,7 @@
-import React from 'react';
-import { ColumnDef } from '@tanstack/react-table';
-import { Document } from '../../types';
-import { FileText, MoreHorizontal, MessageSquare, Download, FolderGit2 } from 'lucide-react';
-import { AIStatusBadge, ClassificationBadge, SharingBadge } from '../ui/DocumentStatusBadges';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { Document } from '../../api/documentQueries';
+import { FileText, MoreHorizontal } from 'lucide-react';
+import { ClassificationBadge, AIStatusBadge } from '../ui/DocumentStatusBadges';
 
 export const columns: ColumnDef<Document>[] = [
   {
@@ -28,23 +27,22 @@ export const columns: ColumnDef<Document>[] = [
     enableSorting: false,
   },
   {
-    accessorKey: 'name',
+    accessorKey: 'title',
     header: 'Document Name',
     cell: ({ row }) => (
       <div className="flex items-center gap-2 font-medium w-[250px] truncate">
         <FileText size={14} className="text-muted-foreground shrink-0" />
-        <span className="truncate">{row.getValue('name')}</span>
+        <span className="truncate">{row.getValue('title')}</span>
       </div>
     ),
   },
   {
-    accessorKey: 'owner',
+    id: 'owner',
     header: 'Owner',
-    cell: ({ row }) => <div className="truncate w-[100px]">{row.getValue('owner')}</div>
-  },
-  {
-    accessorKey: 'department',
-    header: 'Department',
+    cell: ({ row }) => {
+      const owner = row.original.owner;
+      return <div className="truncate w-[120px]">{owner ? `${owner.firstName} ${owner.lastName}` : 'Unknown'}</div>;
+    }
   },
   {
     accessorKey: 'classification',
@@ -52,32 +50,30 @@ export const columns: ColumnDef<Document>[] = [
     cell: ({ row }) => <ClassificationBadge classification={row.getValue('classification')} />
   },
   {
-    accessorKey: 'version',
-    header: 'Version',
-    cell: ({ row }) => <span className="text-muted-foreground font-mono">{row.getValue('version')}</span>
-  },
-  {
-    accessorKey: 'size',
+    accessorKey: 'sizeBytes',
     header: 'Size',
-    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue('size')}</span>
+    cell: ({ row }) => {
+      const bytes = row.getValue('sizeBytes') as number;
+      const mb = (bytes / (1024 * 1024)).toFixed(2);
+      return <span className="text-muted-foreground">{mb} MB</span>;
+    }
   },
   {
-    accessorKey: 'modifiedAt',
-    header: 'Modified',
+    accessorKey: 'createdAt',
+    header: 'Uploaded',
     cell: ({ row }) => {
-      const date = new Date(row.getValue('modifiedAt'));
+      const date = new Date(row.getValue('createdAt'));
       return <span className="text-muted-foreground">{date.toLocaleDateString()}</span>;
     }
   },
   {
-    accessorKey: 'aiStatus',
-    header: 'AI Status',
-    cell: ({ row }) => <AIStatusBadge status={row.getValue('aiStatus')} />
-  },
-  {
-    accessorKey: 'sharingStatus',
-    header: 'Sharing',
-    cell: ({ row }) => <SharingBadge status={row.getValue('sharingStatus')} />
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const jobs = row.original.jobs;
+      const status = jobs && jobs.length > 0 ? jobs[0].status : 'READY';
+      return <AIStatusBadge status={status as any} />;
+    }
   },
   {
     id: 'actions',

@@ -1,4 +1,4 @@
-import { Department, Role, PermissionKey, Group, OrganizationPolicy } from '../types';
+import type { Department, Role, PermissionKey, Group, OrganizationPolicy } from '../types';
 
 export const mockDepartments: Department[] = [
   {
@@ -59,14 +59,14 @@ export const mockDepartments: Department[] = [
 ];
 
 export const mockRoles: Role[] = [
-  { id: 'SUPER_ADMIN', name: 'Super Admin', isCustom: false },
-  { id: 'ORG_ADMIN', name: 'Organization Admin', isCustom: false },
-  { id: 'DEPT_ADMIN', name: 'Department Admin', isCustom: false },
-  { id: 'HR_MANAGER', name: 'HR Manager', isCustom: false },
-  { id: 'LEGAL', name: 'Legal Counsel', isCustom: false },
-  { id: 'ENGINEER', name: 'Engineer', isCustom: true },
-  { id: 'USER', name: 'Employee', isCustom: false },
-  { id: 'GUEST', name: 'Guest', isCustom: false },
+  { id: 'SUPER_ADMIN', name: 'Super Admin', isCustom: false, isSystem: true },
+  { id: 'ORG_ADMIN', name: 'Organization Admin', isCustom: false, isSystem: false },
+  { id: 'DEPT_ADMIN', name: 'Department Admin', isCustom: false, isSystem: false },
+  { id: 'HR_MANAGER', name: 'HR Manager', isCustom: false, isSystem: false },
+  { id: 'LEGAL', name: 'Legal Counsel', isCustom: false, isSystem: false },
+  { id: 'ENGINEER', name: 'Engineer', isCustom: true, isSystem: false },
+  { id: 'USER', name: 'Employee', isCustom: false, isSystem: false },
+  { id: 'GUEST', name: 'Guest', isCustom: false, isSystem: false },
 ];
 
 export const allPermissions: PermissionKey[] = [

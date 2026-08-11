@@ -1,19 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUserStore } from '../../store/useUserStore';
+import { useUsers, useDeactivateUser } from '../../api/userQueries';
 import { AlertTriangle } from 'lucide-react';
 
 export const DeactivateUserAlert: React.FC = () => {
-  const { isDeactivateAlertOpen, setDeactivateAlertOpen, selectedUserId, users, deactivateUser } = useUserStore();
+  const { isDeactivateAlertOpen, setDeactivateAlertOpen, selectedUserId } = useUserStore();
+  const { data: users = [] } = useUsers();
+  const deactivateUserMutation = useDeactivateUser();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   if (!isDeactivateAlertOpen || !selectedUserId) return null;
 
   const user = users.find(u => u.id === selectedUserId);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleDeactivate = async () => {
     setIsSubmitting(true);
-    await deactivateUser(selectedUserId);
-    setIsSubmitting(false);
+    try {
+      await deactivateUserMutation.mutateAsync(selectedUserId);
+      setDeactivateAlertOpen(false);
+    } catch (err) {
+      console.error('Failed to suspend user', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

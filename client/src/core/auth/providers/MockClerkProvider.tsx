@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 
 // Mocks the Clerk useSignIn hook
 export const useSignIn = () => {
   const { setAuth } = useAuthStore();
-  const [isLoaded, setIsLoaded] = useState(true);
+  const isLoaded = true;
 
   const signIn = {
     create: async (params: { identifier?: string; password?: string }) => {
@@ -21,8 +21,10 @@ export const useSignIn = () => {
         firstName: 'Admin',
         lastName: 'User',
         organizationId: 'org_123',
-        departmentId: 'dept_it',
-        roles: ['ORG_ADMIN'] as any,
+        industry: 'CORPORATE',
+        departments: ['dept_it'],
+        role: 'ADMIN' as any,
+        clearanceLevel: 'L5' as any,
       };
 
       setAuth(true, mockUser);
@@ -36,7 +38,7 @@ export const useSignIn = () => {
 // Mocks the Clerk useSignUp hook
 export const useSignUp = () => {
   const { setAuth } = useAuthStore();
-  const [isLoaded, setIsLoaded] = useState(true);
+  const isLoaded = true;
 
   const signUp = {
     create: async (params: { emailAddress?: string; password?: string }) => {
@@ -48,8 +50,10 @@ export const useSignUp = () => {
         firstName: 'New',
         lastName: 'User',
         organizationId: 'org_123',
-        departmentId: 'dept_unassigned',
-        roles: ['USER'] as any,
+        industry: 'CORPORATE',
+        departments: ['dept_unassigned'],
+        role: 'MEMBER' as any,
+        clearanceLevel: 'L1' as any,
       };
 
       setAuth(true, mockUser);

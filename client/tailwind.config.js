@@ -54,9 +54,9 @@ module.exports = {
         }
       },
       borderRadius: {
-        lg: "8px",
-        md: "6px",
-        sm: "4px",
+        lg: "4px",
+        md: "2px",
+        sm: "0px",
       },
       boxShadow: {
         sm: "0 1px 2px 0 rgb(0 0 0 / 0.05)",

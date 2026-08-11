@@ -17,14 +17,27 @@ export class SemanticSearchController {
         return;
       }
 
+      const userDepartments = user.departments || [];
+      const explicitDepartments = validatedData.departmentIds;
+      let finalDepartmentIds: string[] = [];
+
+      if (explicitDepartments.length > 0) {
+        // Prevent IDOR: Ensure explicit departments are a subset of user's allowed departments
+        finalDepartmentIds = explicitDepartments.filter(id => userDepartments.includes(id));
+        if (finalDepartmentIds.length !== explicitDepartments.length) {
+          res.status(403).json({ success: false, error: 'Forbidden: Access to one or more requested departments is denied.' });
+          return;
+        }
+      } else {
+        finalDepartmentIds = userDepartments;
+      }
+
       // 3. Map to SearchRequest
       const searchRequest = {
         query: validatedData.query,
         organizationId: user.organizationId,
         userId: user.id,
-        departmentIds: validatedData.departmentIds.length > 0 
-          ? validatedData.departmentIds 
-          : user.departments || [], // Use explicit departments or user's allowed departments
+        departmentIds: finalDepartmentIds,
         limit: validatedData.limit,
         filters: validatedData.filters
       };

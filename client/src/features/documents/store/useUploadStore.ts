@@ -8,6 +8,7 @@ export interface UploadFile {
   progress: number;
   status: UploadStatus;
   errorMessage?: string;
+  documentId?: string;
 }
 
 interface UploadState {
@@ -15,13 +16,14 @@ interface UploadState {
   files: UploadFile[];
   setIsOpen: (isOpen: boolean) => void;
   addFiles: (newFiles: File[]) => void;
+  updateFile: (id: string, updates: Partial<UploadFile>) => void;
   removeFile: (id: string) => void;
   cancelUpload: (id: string) => void;
   retryUpload: (id: string) => void;
   clearCompleted: () => void;
 }
 
-export const useUploadStore = create<UploadState>((set, get) => ({
+export const useUploadStore = create<UploadState>((set) => ({
   isOpen: false,
   files: [],
   setIsOpen: (isOpen) => set({ isOpen }),
@@ -55,12 +57,11 @@ export const useUploadStore = create<UploadState>((set, get) => ({
     });
 
     set((state) => ({ files: [...state.files, ...mappedFiles] }));
-    
-    // Auto-start valid uploads
-    mappedFiles.filter(f => f.status === 'Queued').forEach(f => {
-      simulateUpload(f.id, set);
-    });
   },
+
+  updateFile: (id, updates) => set((state) => ({
+    files: state.files.map((f) => f.id === id ? { ...f, ...updates } : f)
+  })),
 
   removeFile: (id) => set((state) => ({ files: state.files.filter((f) => f.id !== id) })),
   
@@ -68,54 +69,11 @@ export const useUploadStore = create<UploadState>((set, get) => ({
     files: state.files.map((f) => f.id === id && f.status === 'Uploading' ? { ...f, status: 'Cancelled' } : f)
   })),
 
-  retryUpload: (id) => {
-    set((state) => ({
-      files: state.files.map((f) => f.id === id ? { ...f, status: 'Queued', progress: 0, errorMessage: undefined } : f)
-    }));
-    simulateUpload(id, set);
-  },
+  retryUpload: (id) => set((state) => ({
+    files: state.files.map((f) => f.id === id ? { ...f, status: 'Queued', progress: 0, errorMessage: undefined } : f)
+  })),
 
   clearCompleted: () => set((state) => ({
     files: state.files.filter((f) => f.status !== 'Uploaded')
   })),
 }));
-
-// Mock upload simulator
-function simulateUpload(id: string, set: any) {
-  set((state: UploadState) => ({
-    files: state.files.map((f) => f.id === id ? { ...f, status: 'Uploading' } : f)
-  }));
-
-  let progress = 0;
-  const interval = setInterval(() => {
-    progress += Math.floor(Math.random() * 20) + 5; // Simulate chunking
-    
-    // Simulate random failure (10% chance)
-    if (progress > 50 && Math.random() < 0.1) {
-      clearInterval(interval);
-      set((state: UploadState) => ({
-        files: state.files.map((f) => f.id === id ? { ...f, status: 'Failed', errorMessage: 'Network timeout' } : f)
-      }));
-      return;
-    }
-
-    if (progress >= 100) {
-      clearInterval(interval);
-      set((state: UploadState) => ({
-        files: state.files.map((f) => f.id === id ? { ...f, progress: 100, status: 'Uploaded' } : f)
-      }));
-    } else {
-      set((state: UploadState) => {
-        // Stop if cancelled
-        const file = state.files.find(f => f.id === id);
-        if (file?.status === 'Cancelled') {
-          clearInterval(interval);
-          return state;
-        }
-        return {
-          files: state.files.map((f) => f.id === id ? { ...f, progress } : f)
-        };
-      });
-    }
-  }, 400);
-}

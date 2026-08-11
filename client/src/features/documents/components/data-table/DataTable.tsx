@@ -1,13 +1,15 @@
 import React from 'react';
-import { ColumnDef, flexRender, getCoreRowModel, useReactTable, getSortedRowModel, SortingState, getPaginationRowModel } from '@tanstack/react-table';
+import { flexRender, getCoreRowModel, useReactTable, getSortedRowModel, getPaginationRowModel, getFilteredRowModel } from '@tanstack/react-table';
+import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import { useDocumentStore } from '../../store/useDocumentStore';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
+  globalFilter: string;
 }
 
-export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>({ columns, data, globalFilter }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
 
@@ -18,10 +20,12 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       rowSelection,
+      globalFilter,
     },
     initialState: {
       pagination: { pageSize: 15 }
@@ -47,10 +51,10 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <tr 
-                  key={row.id} 
+                  key={(row.original as any).id} 
                   className="hover:bg-slate-50 transition-colors data-[state=selected]:bg-slate-50 cursor-pointer"
                   onClick={() => {
-                    useDocumentStore.getState().setSelectedDocument(row.original.id, row.original as any);
+                    useDocumentStore.getState().setSelectedDocument((row.original as any).id, row.original as any);
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (

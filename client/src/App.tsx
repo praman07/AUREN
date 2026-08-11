@@ -5,9 +5,14 @@ import { queryClient } from './lib/queryClient';
 import { EnterpriseLayout } from './components/layout/EnterpriseLayout';
 import { DocumentsPage } from './features/documents/components/DocumentsPage';
 import { DashboardPage } from './features/dashboard/components/DashboardPage';
+import { SearchPage } from './features/search/components/SearchPage';
+import { ChatPage } from './features/chat/components/ChatPage';
 import { OrganizationsPage } from './features/organizations/components/OrganizationsPage';
 import { UsersPage } from './features/users/components/UsersPage';
 import { DepartmentsSecurityPage } from './features/departments/components/DepartmentsSecurityPage';
+import { AuditLogsPage } from './features/audit-logs/components/AuditLogsPage';
+import { ProcessingJobsPage } from './features/processing-jobs/components/ProcessingJobsPage';
+import { MemoryConsolePage } from './features/memory/components/MemoryConsolePage';
 import { EnterpriseAuthProvider } from './core/auth/providers/EnterpriseAuthProvider';
 import { RequireAuth, PublicOnly } from './core/auth/guards/AuthGuards';
 import { LoginForm } from './features/authentication/components/LoginForm';
@@ -32,10 +37,20 @@ function App() {
             <Route path="/" element={<RequireAuth><EnterpriseLayout /></RequireAuth>}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="search" element={<SearchPage />} />
+              <Route path="chat" element={<ChatPage />} />
+              <Route path="memory" element={<MemoryConsolePage />} />
               <Route path="organizations" element={<OrganizationsPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="departments" element={<DepartmentsSecurityPage />} />
+              <Route path="audit-logs" element={<AuditLogsPage />} />
+              <Route path="jobs" element={<ProcessingJobsPage />} />
               <Route path="documents" element={<DocumentsPage />} />
+              
+              <Route path="admin/users" element={<Navigate to="/users" replace />} />
+              <Route path="admin/departments" element={<Navigate to="/departments" replace />} />
+              <Route path="admin/audit-logs" element={<Navigate to="/audit-logs" replace />} />
+              <Route path="admin/jobs" element={<Navigate to="/jobs" replace />} />
               
               <Route path="*" element={
                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">

@@ -23,7 +23,7 @@ export class LocalOCRProvider implements IOCRProvider {
       extractedText = "[Performed Tesseract OCR on image] ...";
       confidence = 0.90;
     } else {
-      extractedText = buffer.toString('utf8');
+      extractedText = fileBuffer.toString('utf8');
       confidence = 1.0;
     }
 

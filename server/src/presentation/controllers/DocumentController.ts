@@ -17,7 +17,7 @@ export class DocumentController {
 
   public getDocumentById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const doc = await this.documentService.getDocumentById(req.params.id, req.user!.organizationId);
+      const doc = await this.documentService.getDocumentById(req.params.id as string, req.user!.organizationId);
       res.status(200).json({ success: true, data: doc });
     } catch (error) { next(error); }
   };
@@ -36,7 +36,7 @@ export class DocumentController {
   public updateDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const doc = await this.documentService.updateDocument(
-        req.params.id,
+        req.params.id as string,
         req.user!.organizationId,
         req.user!.id,
         req.body
@@ -47,14 +47,14 @@ export class DocumentController {
 
   public deleteDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await this.documentService.deleteDocument(req.params.id, req.user!.organizationId, req.user!.id);
+      await this.documentService.deleteDocument(req.params.id as string, req.user!.organizationId, req.user!.id);
       res.status(204).send();
     } catch (error) { next(error); }
   };
 
   public restoreDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const doc = await this.documentService.restoreDocument(req.params.id, req.user!.organizationId, req.user!.id);
+      const doc = await this.documentService.restoreDocument(req.params.id as string, req.user!.organizationId, req.user!.id);
       res.status(200).json({ success: true, data: doc });
     } catch (error) { next(error); }
   };

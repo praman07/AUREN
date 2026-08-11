@@ -1,20 +1,27 @@
 import React from 'react';
 import { useUserStore } from '../../store/useUserStore';
-import { X, Shield, Mail, Building2, Clock, Lock } from 'lucide-react';
+import { useUsers, useReactivateUser } from '../../api/userQueries';
+import { X, Shield, Building2, Lock } from 'lucide-react';
 
 export const UserDetailsDrawer: React.FC = () => {
-  const { selectedUserId, setSelectedUserId, users, setDeactivateAlertOpen, reactivateUser } = useUserStore();
+  const { selectedUserId, setSelectedUserId, setDeactivateAlertOpen } = useUserStore();
+  const { data: users = [] } = useUsers();
+  const reactivateUserMutation = useReactivateUser();
   
   const user = users.find(u => u.id === selectedUserId);
   const isOpen = !!user;
 
   if (!isOpen || !user) return null;
 
-  const handleToggleStatus = () => {
+  const handleToggleStatus = async () => {
     if (user.status === 'ACTIVE') {
       setDeactivateAlertOpen(true);
     } else if (user.status === 'SUSPENDED' || user.status === 'LOCKED') {
-      reactivateUser(user.id);
+      try {
+        await reactivateUserMutation.mutateAsync(user.id);
+      } catch (error) {
+        console.error('Failed to reactivate user', error);
+      }
     }
   };
 

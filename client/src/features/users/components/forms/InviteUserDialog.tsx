@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useUserStore } from '../../store/useUserStore';
+import { useInviteUser } from '../../api/userQueries';
 import { Mail, X } from 'lucide-react';
 
 export const InviteUserDialog: React.FC = () => {
-  const { isInviteModalOpen, setInviteModalOpen, inviteUser } = useUserStore();
+  const { isInviteModalOpen, setInviteModalOpen } = useUserStore();
+  const inviteUserMutation = useInviteUser();
   
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('USER');
@@ -17,10 +19,16 @@ export const InviteUserDialog: React.FC = () => {
     if (!email) return;
     
     setIsSubmitting(true);
-    await inviteUser(email, role, department);
-    setIsSubmitting(false);
-    setEmail('');
-    setRole('USER');
+    try {
+      await inviteUserMutation.mutateAsync({ email, role, department });
+      setInviteModalOpen(false);
+      setEmail('');
+      setRole('USER');
+    } catch (err) {
+      console.error('Failed to invite user', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

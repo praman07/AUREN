@@ -22,6 +22,7 @@ export class VectorSearchProvider {
     // Translate provider results to RetrievedChunk
     return results.map(r => ({
       id: r.payload?.chunkId || r.id,
+      organizationId: r.payload.organizationId,
       documentId: r.payload.documentId,
       content: r.payload.text || r.payload.content || '',
       score: r.score,

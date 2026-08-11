@@ -1,17 +1,32 @@
-import React from 'react';
-import { useUploadStore, UploadFile } from '../../store/useUploadStore';
-import { FileText, File, X, RotateCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { useUploadStore } from '../../store/useUploadStore';
+import type { UploadFile } from '../../store/useUploadStore';
+import { FileText, X, RotateCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useUploadDocument } from '../../api/documentQueries';
 
 export const UploadItem: React.FC<{ item: UploadFile }> = ({ item }) => {
-  const { removeFile, retryUpload, cancelUpload } = useUploadStore();
+  const { removeFile, retryUpload, cancelUpload, updateFile } = useUploadStore();
   const { file, progress, status, errorMessage } = item;
+  const { mutateAsync: uploadDocument } = useUploadDocument();
 
-  const ext = file.name.split('.').pop()?.toUpperCase() || 'FILE';
   const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
 
   const isUploading = status === 'Uploading';
   const isFailed = status === 'Failed';
   const isUploaded = status === 'Uploaded';
+
+  useEffect(() => {
+    if (status === 'Queued') {
+      updateFile(item.id, { status: 'Uploading', progress: 50 });
+      uploadDocument(file)
+        .then((data) => {
+          updateFile(item.id, { status: 'Uploaded', progress: 100, documentId: data.documentId });
+        })
+        .catch((err) => {
+          updateFile(item.id, { status: 'Failed', progress: 0, errorMessage: err.message || 'Upload failed' });
+        });
+    }
+  }, [status, file, item.id, updateFile, uploadDocument]);
 
   return (
     <div className="flex items-center gap-3 p-3 border border-border rounded-md bg-white shadow-sm mb-2 group">

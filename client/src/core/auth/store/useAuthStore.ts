@@ -1,15 +1,15 @@
 import { create } from 'zustand';
 
-export type EnterpriseRole = 'SUPER_ADMIN' | 'ORG_ADMIN' | 'DEPT_MANAGER' | 'USER' | 'GUEST';
-
 export interface EnterpriseUser {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   organizationId: string;
-  departmentId: string;
-  roles: EnterpriseRole[];
+  industry: string;
+  departments: string[];
+  role: 'ADMIN' | 'MANAGER' | 'MEMBER' | 'GUEST' | string;
+  clearanceLevel: 'TOP_SECRET' | 'SECRET' | 'CONFIDENTIAL' | 'UNCLASSIFIED' | string;
 }
 
 interface AuthState {

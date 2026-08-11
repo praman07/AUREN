@@ -1,9 +1,10 @@
 import React from 'react';
 import { useUserStore } from '../../store/useUserStore';
-import { MoreHorizontal } from 'lucide-react';
+import { useUsers } from '../../api/userQueries';
 
 export const UsersTable: React.FC = () => {
-  const { users, selectedUserId, setSelectedUserId } = useUserStore();
+  const { selectedUserId, setSelectedUserId } = useUserStore();
+  const { data: users = [], isLoading, error } = useUsers();
 
   const getInitials = (first: string, last: string) => {
     if (!first && !last) return '??';
@@ -22,7 +23,25 @@ export const UsersTable: React.FC = () => {
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {users.map(user => {
+          {isLoading ? (
+            <tr>
+              <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                Loading users...
+              </td>
+            </tr>
+          ) : error ? (
+            <tr>
+              <td colSpan={4} className="px-4 py-8 text-center text-danger">
+                Failed to load users: {error.message}
+              </td>
+            </tr>
+          ) : users.length === 0 ? (
+            <tr>
+              <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                No users found.
+              </td>
+            </tr>
+          ) : users.map(user => {
             const isSelected = selectedUserId === user.id;
             
             return (

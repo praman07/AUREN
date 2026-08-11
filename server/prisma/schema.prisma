@@ -26,6 +26,16 @@ enum DocumentClassification {
   STRICTLY_CONFIDENTIAL
 }
 
+enum IndustryTemplate {
+  CORPORATE
+  HOSPITAL
+  LEGAL
+  FINANCE
+  EDUCATION
+  GOVERNMENT
+  CUSTOM
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -40,6 +50,27 @@ enum AuditAction {
   INDEXING_FAILED
 }
 
+enum SourceType {
+  UPLOAD
+  GITHUB
+  NOTION
+  GMAIL
+}
+
+enum ConnectorProvider {
+  GITHUB
+  NOTION
+  GMAIL
+  GOOGLE_DRIVE
+  SLACK
+}
+
+enum DocumentVisibility {
+  ORG_WIDE
+  DEPARTMENT
+  PRIVATE
+}
+
 // -----------------------------------------------------------------------------
 // MULTI-TENANT FOUNDATION
 // -----------------------------------------------------------------------------
@@ -48,6 +79,7 @@ model Organization {
   id        String    @id @default(uuid())
   name      String
   domain    String?   @unique
+  industry  IndustryTemplate @default(CORPORATE)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -65,6 +97,7 @@ model Organization {
   chunks       DocumentChunk[]
   chats        Chat[]
   messages     Message[]
+  connectedAccounts ConnectedAccount[]
 }
 
 model Department {
@@ -79,6 +112,7 @@ model Department {
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   users        User[]
+  documents    Document[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -113,6 +147,7 @@ model User {
   messages            Message[]
   sessions            Session[]
   auditLogs           AuditLog[]            @relation("AuditActor")
+  connectedAccounts   ConnectedAccount[]
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -210,6 +245,32 @@ model GroupRole {
   @@index([roleId])
 }
 
+model ConnectedAccount {
+  id             String            @id @default(uuid())
+  organizationId String
+  userId         String?
+  provider       ConnectorProvider
+  accountId      String
+  accountEmail   String?
+  accessToken    String            @db.Text
+  refreshToken   String?           @db.Text
+  tokenIv        String?           @db.Text
+  scopes         String?           @db.Text
+  expiresAt      DateTime?
+  status         String            @default("ACTIVE")
+  lastSyncAt     DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents      Document[]
+
+  @@unique([provider, accountId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
 // -----------------------------------------------------------------------------
 // KNOWLEDGE GRAPH (Documents & Embeddings)
 // -----------------------------------------------------------------------------
@@ -223,6 +284,12 @@ model Document {
   mimeType       String
   sizeBytes      Int
   isFavorited    Boolean                @default(false)
+  visibility     DocumentVisibility     @default(PRIVATE)
+  departmentId   String?
+  sourceType     SourceType             @default(UPLOAD)
+  externalId     String?
+  sourceUrl      String?
+  connectedAccountId String?
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
   deletedAt      DateTime?
@@ -230,6 +297,8 @@ model Document {
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   owner        User         @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  connectedAccount ConnectedAccount? @relation(fields: [connectedAccountId], references: [id], onDelete: SetNull)
   
   versions     DocumentVersion[]
   permissions  DocumentPermission[]

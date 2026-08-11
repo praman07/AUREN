@@ -1,37 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useDocumentStore } from '../../store/useDocumentStore';
-import { generateMockDetails, ExtendedDocumentDetails } from '../../mock/documentDetails.mock';
+import { useDocument } from '../../api/documentQueries';
 import { X, Star, MoreHorizontal, Download, FolderInput, Share2, Trash2 } from 'lucide-react';
 import { OverviewSection, SecuritySection, AISection } from './sections/MetadataSections';
 import { VersionHistory } from './sections/VersionHistory';
 import { ActivityTimeline } from './sections/ActivityTimeline';
 
 export const DocumentDetailsDrawer: React.FC = () => {
-  const { selectedDocument, setSelectedDocument } = useDocumentStore();
-  const [details, setDetails] = useState<ExtendedDocumentDetails | null>(null);
-
-  // Mock fetch deep details
-  useEffect(() => {
-    if (selectedDocument) {
-      setDetails(generateMockDetails(selectedDocument));
-    } else {
-      setDetails(null);
-    }
-  }, [selectedDocument]);
+  const { selectedDocumentId, setSelectedDocument } = useDocumentStore();
+  const { data: details, isLoading } = useDocument(selectedDocumentId || '');
 
   // Handle Escape to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSelectedDocument(null);
     };
-    if (selectedDocument) window.addEventListener('keydown', handleKeyDown);
+    if (selectedDocumentId) window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedDocument, setSelectedDocument]);
+  }, [selectedDocumentId, setSelectedDocument]);
 
   return (
     <>
       {/* Backdrop for mobile, invisible on desktop but captures clicks */}
-      {selectedDocument && (
+      {selectedDocumentId && (
         <div 
           className="fixed inset-0 z-40 bg-transparent xl:bg-transparent"
           onClick={() => setSelectedDocument(null)}
@@ -41,10 +32,14 @@ export const DocumentDetailsDrawer: React.FC = () => {
       {/* Drawer */}
       <div 
         className={`fixed top-0 right-0 h-full w-[400px] bg-white border-l border-border shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
-          selectedDocument ? 'translate-x-0' : 'translate-x-full'
+          selectedDocumentId ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {details ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full text-muted-foreground text-sm animate-pulse">
+            Loading details...
+          </div>
+        ) : details ? (
           <>
             {/* Header */}
             <div className="flex flex-col p-4 border-b border-border bg-slate-50 shrink-0">
@@ -64,8 +59,8 @@ export const DocumentDetailsDrawer: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <h2 className="text-base font-semibold text-foreground truncate pr-2" title={details.name}>
-                {details.name}
+              <h2 className="text-base font-semibold text-foreground truncate pr-2" title={details.title}>
+                {details.title}
               </h2>
             </div>
 

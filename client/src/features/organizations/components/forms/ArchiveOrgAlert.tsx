@@ -1,14 +1,15 @@
 import React from 'react';
 import { useOrganizationStore } from '../../store/useOrganizationStore';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 export const ArchiveOrgAlert: React.FC = () => {
   const { isArchiveAlertOpen, setArchiveAlertOpen, selectedOrgId, organizations, archiveOrganization } = useOrganizationStore();
   
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
   if (!isArchiveAlertOpen || !selectedOrgId) return null;
 
   const org = organizations.find(o => o.id === selectedOrgId);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const handleArchive = async () => {
     setIsSubmitting(true);

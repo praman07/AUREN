@@ -1,0 +1,1 @@
+Mock extracted content for PDF: The EKOS system is a knowledge OS designed for enterprise RAG with zero trust architectures. It allows seamless semantic search and RAG workflows. It uses Qwen2.5 and Ollama.
