@@ -11,6 +11,99 @@ export interface IndustryTemplate {
   defaultRoles: { name: string; description: string }[];
 }
 
+const DEFAULT_TEMPLATES: IndustryTemplate[] = [
+  {
+    industry: 'CORPORATE',
+    label: 'Corporate & Enterprise',
+    description: 'Standard enterprise hierarchy with Executive, HR, Finance, Engineering, and Legal divisions.',
+    defaultDepartments: [
+      { name: 'Executive Office', description: 'C-Suite leadership and strategic operations' },
+      { name: 'Engineering & Product', description: 'Software engineering, architecture, and product management' },
+      { name: 'Human Resources', description: 'Talent acquisition, employee relations, and HR policies' },
+      { name: 'Finance & Accounting', description: 'Financial planning, payroll, and fiscal reporting' },
+      { name: 'Legal & Compliance', description: 'Corporate governance, contracts, and regulatory compliance' }
+    ],
+    defaultRoles: [
+      { name: 'Executive Admin', description: 'Full access to organization controls and documents' },
+      { name: 'Department Head', description: 'Department-level management and access policy authority' },
+      { name: 'Senior Engineer', description: 'Access to technical documentation and repositories' },
+      { name: 'Staff Member', description: 'Standard organization member access' }
+    ]
+  },
+  {
+    industry: 'HOSPITAL',
+    label: 'Healthcare & Hospital',
+    description: 'Strict HIPAA-compliant structures for Clinical Operations, Medical Records, Administration, and Pharmacy.',
+    defaultDepartments: [
+      { name: 'Clinical Operations', description: 'Direct patient care, nursing, and medical staff' },
+      { name: 'Medical Records (HIM)', description: 'Health information management and patient records' },
+      { name: 'Hospital Administration', description: 'Executive, billing, and facility management' },
+      { name: 'Pharmacy & Therapeutics', description: 'Pharmaceutical management and medication protocols' }
+    ],
+    defaultRoles: [
+      { name: 'Chief Medical Officer', description: 'Full executive and medical document clearance' },
+      { name: 'Attending Physician', description: 'Access to clinical records and treatment guidelines' },
+      { name: 'Registered Nurse', description: 'Access to operational care guidelines and shift notes' }
+    ]
+  },
+  {
+    industry: 'LEGAL',
+    label: 'Legal & Law Firm',
+    description: 'Case and client-isolated structures for Litigation, Corporate Law, Paralegal Services, and Compliance.',
+    defaultDepartments: [
+      { name: 'Litigation Practice', description: 'Court filings, evidence, and dispute resolution' },
+      { name: 'Corporate & M&A', description: 'Mergers, acquisitions, contracts, and filings' },
+      { name: 'Paralegal Services', description: 'Case research, drafting, and document review' }
+    ],
+    defaultRoles: [
+      { name: 'Managing Partner', description: 'Full legal practice governance and policy admin' },
+      { name: 'Senior Associate', description: 'Case management and confidential file access' },
+      { name: 'Paralegal', description: 'Drafting research and document preparation' }
+    ]
+  },
+  {
+    industry: 'FINANCE',
+    label: 'Financial Services',
+    description: 'SOC2/FINRA-ready layout for Investment Banking, Risk Management, Trading, and Compliance.',
+    defaultDepartments: [
+      { name: 'Investment Banking', description: 'M&A advisory, capital markets, and deals' },
+      { name: 'Risk Management', description: 'Credit risk, market risk, and quantitative modeling' },
+      { name: 'Compliance & Regulatory', description: 'SEC/FINRA regulatory oversight and reporting' }
+    ],
+    defaultRoles: [
+      { name: 'Chief Risk Officer', description: 'Full financial oversight and compliance access' },
+      { name: 'Portfolio Manager', description: 'Access to investment research and trading logs' },
+      { name: 'Financial Analyst', description: 'Access to market analysis and reports' }
+    ]
+  },
+  {
+    industry: 'EDUCATION',
+    label: 'Higher Education',
+    description: 'Academic affairs, Research labs, Student records, and University Administration.',
+    defaultDepartments: [
+      { name: 'Academic Affairs', description: 'Faculty management, curriculum, and accreditation' },
+      { name: 'Research Operations', description: 'Grant management, publications, and lab data' }
+    ],
+    defaultRoles: [
+      { name: 'Dean / Administrator', description: 'Full university workspace administration' },
+      { name: 'Faculty Member', description: 'Access to department documents and curriculum' }
+    ]
+  },
+  {
+    industry: 'GOVERNMENT',
+    label: 'Government & Public Sector',
+    description: 'High-assurance clearance model for Defense, Public Affairs, Operations, and Auditing.',
+    defaultDepartments: [
+      { name: 'Defense & Operations', description: 'Operational directives and tactical manuals' },
+      { name: 'Public Affairs', description: 'Unclassified announcements and press releases' }
+    ],
+    defaultRoles: [
+      { name: 'Director General', description: 'Top secret clearance and governance' },
+      { name: 'Security Officer', description: 'Access control and classification oversight' }
+    ]
+  }
+];
+
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
@@ -23,7 +116,7 @@ export const OnboardingPage: React.FC = () => {
   const [orgName, setOrgName] = useState('');
   const [domain, setDomain] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('CORPORATE');
-  const [templates, setTemplates] = useState<IndustryTemplate[]>([]);
+  const [templates, setTemplates] = useState<IndustryTemplate[]>(DEFAULT_TEMPLATES);
 
   // Super Admin state
   const [adminEmail, setAdminEmail] = useState('');
@@ -42,7 +135,7 @@ export const OnboardingPage: React.FC = () => {
     fetch('/api/v1/onboarding/templates')
       .then(res => res.json())
       .then(data => {
-        if (data.success && Array.isArray(data.data)) {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
           setTemplates(data.data);
         }
       })
