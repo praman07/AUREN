@@ -10,12 +10,18 @@ export const validateRequest = (schema: ZodTypeAny) => {
         params: req.params,
       });
       return next();
-    } catch (error) {
-      if (error instanceof ZodError) {
+    } catch (error: any) {
+      const issues = error?.issues || error?.errors || [];
+      if (issues.length > 0 || error instanceof ZodError) {
+        const details = issues.map((e: any) => ({
+          path: Array.isArray(e.path) ? e.path.join('.') : String(e.path || ''),
+          message: e.message || 'Invalid input',
+        }));
+        const firstMessage = details[0]?.message || 'Validation failed';
         return res.status(400).json({
           success: false,
-          error: 'Validation failed',
-          details: (error as any).errors.map((e: any) => ({ path: e.path.join('.'), message: e.message })),
+          error: firstMessage,
+          details,
         });
       }
       return next(error);
