@@ -15,7 +15,7 @@ async function runPermissionsE2ETest() {
     limit: 10,
     organizationId: 'org_1',
     userId: 'user_employee',
-    departmentIds: ['dept_hr']
+    roleIds: [], departmentIds: ['dept_hr']
   });
 
   console.log('Generated Qdrant Filter:', JSON.stringify(qdrantFilter, null, 2));
@@ -27,7 +27,7 @@ async function runPermissionsE2ETest() {
     limit: 10,
     organizationId: 'org_1',
     userId: 'user_exec',
-    departmentIds: ['dept_hr', 'dept_eng', 'dept_sales', 'dept_legal']
+    roleIds: [], departmentIds: ['dept_hr', 'dept_eng', 'dept_sales', 'dept_legal']
   });
 
   console.log('Generated Qdrant Filter:', JSON.stringify(execFilter, null, 2));

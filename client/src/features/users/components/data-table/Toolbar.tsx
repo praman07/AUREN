@@ -1,9 +1,11 @@
 import React from 'react';
 import { useUserStore } from '../../store/useUserStore';
+import { useAuthStore } from '../../../../core/auth/store/useAuthStore';
 import { UserPlus, Search, Filter } from 'lucide-react';
 
 export const UsersToolbar: React.FC = () => {
   const { setInviteModalOpen } = useUserStore();
+  const isSuperAdmin = useAuthStore((state) => state.user?.isSuperAdmin);
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -22,13 +24,15 @@ export const UsersToolbar: React.FC = () => {
         </button>
       </div>
       
-      <button 
-        onClick={() => setInviteModalOpen(true)}
-        className="h-8 px-4 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary-hover transition-colors shadow-sm flex items-center gap-2 focus:ring-2 focus:ring-primary focus:outline-none"
-      >
-        <UserPlus size={14} />
-        Invite User
-      </button>
+      {isSuperAdmin && (
+        <button 
+          onClick={() => setInviteModalOpen(true)}
+          className="h-8 px-4 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary-hover transition-colors shadow-sm flex items-center gap-2 focus:ring-2 focus:ring-primary focus:outline-none"
+        >
+          <UserPlus size={14} />
+          Invite User
+        </button>
+      )}
     </div>
   );
 };

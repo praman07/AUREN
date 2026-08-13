@@ -62,4 +62,29 @@ export class AuditLogService {
       }
     };
   }
+
+  async getLogById(organizationId: string, id: string) {
+    const log = await prisma.auditLog.findFirst({
+      where: { id, organizationId },
+      include: {
+        actor: {
+          select: { id: true, firstName: true, lastName: true, email: true }
+        }
+      }
+    });
+    if (!log) return null;
+    // Metadata may contain operational details; never expose anything sensitive.
+    return {
+      id: log.id,
+      organizationId: log.organizationId,
+      actorId: log.actorId,
+      actor: log.actor,
+      action: log.action,
+      resourceId: log.resourceId,
+      metadata: log.metadata,
+      ipAddress: log.ipAddress,
+      userAgent: log.userAgent,
+      createdAt: log.createdAt
+    };
+  }
 }

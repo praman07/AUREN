@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { RoleController } from '../controllers/RoleController';
 import { requireAuth } from '../middlewares/requireAuth';
+import { requireSuperAdmin } from '../middlewares/requireSuperAdmin';
 import { validateRequest } from '../middlewares/validateRequest';
 import { TogglePermissionSchema, RoleIdParamSchema } from '../../application/dtos/RoleDTOs';
 import { unitOfWork, eventPublisher } from '../../di';
@@ -16,7 +17,7 @@ router.get('/', roleController.getRoles);
 
 router.patch(
   '/:id/permissions/toggle',
-  /* requireClearance('INTERNAL'), */
+  requireSuperAdmin,
   validateRequest(TogglePermissionSchema),
   roleController.togglePermission
 );

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { DepartmentController } from '../controllers/DepartmentController';
 import { requireAuth } from '../middlewares/requireAuth';
+import { requireSuperAdmin } from '../middlewares/requireSuperAdmin';
 import { validateRequest } from '../middlewares/validateRequest';
 import { CreateDepartmentSchema, UpdateDepartmentSchema, DepartmentIdParamSchema } from '../../application/dtos/DepartmentDTOs';
 import { unitOfWork, departmentRepository, eventPublisher } from '../../di';
@@ -16,28 +17,28 @@ router.get('/', departmentController.getDepartments);
 
 router.post(
   '/',
-  /* requireClearance('INTERNAL'), TODO: define if needed */
+  requireSuperAdmin,
   validateRequest(CreateDepartmentSchema),
   departmentController.createDepartment
 );
 
 router.patch(
   '/:id',
-  /* requireClearance('INTERNAL'), */
+  requireSuperAdmin,
   validateRequest(UpdateDepartmentSchema),
   departmentController.updateDepartment
 );
 
 router.patch(
   '/:id/archive',
-  /* requireClearance('INTERNAL'), */
+  requireSuperAdmin,
   validateRequest(DepartmentIdParamSchema),
   departmentController.archiveDepartment
 );
 
 router.patch(
   '/:id/restore',
-  /* requireClearance('INTERNAL'), */
+  requireSuperAdmin,
   validateRequest(DepartmentIdParamSchema),
   departmentController.restoreDepartment
 );

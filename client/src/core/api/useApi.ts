@@ -1,20 +1,18 @@
-import { useAuth } from '@clerk/clerk-react';
 import { useCallback } from 'react';
+import { useAuthStore } from '../auth/store/useAuthStore';
 
 const API_BASE = '/api/v1';
 
 export function useApi() {
-  const { getToken } = useAuth();
-
   const fetchWithAuth = useCallback(async (endpoint: string, options: RequestInit = {}) => {
-    const token = await getToken();
-    
+    let token = useAuthStore.getState().token || (typeof window !== 'undefined' ? localStorage.getItem('auren_token') : null);
+
     const headers = new Headers(options.headers || {});
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
     
-    // Auto-set Content-Type for JSON unless it's FormData (which needs browser to set boundary)
+    // Auto-set Content-Type for JSON unless it's FormData
     if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }
@@ -23,6 +21,13 @@ export function useApi() {
       ...options,
       headers,
     });
+
+    if (response.status === 401) {
+      // If unauthorized, clear auth state so UI redirects to login
+      useAuthStore.getState().signOut();
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || 'Unauthorized session');
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
@@ -35,7 +40,7 @@ export function useApi() {
     }
 
     return response.json();
-  }, [getToken]);
+  }, []);
 
   return {
     get: (endpoint: string, options?: RequestInit) => fetchWithAuth(endpoint, { ...options, method: 'GET' }),

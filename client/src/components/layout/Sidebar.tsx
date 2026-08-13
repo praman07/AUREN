@@ -13,29 +13,34 @@ export const Sidebar: React.FC = () => {
   return (
     <aside 
       className={`
-        transition-all duration-200 border-r border-border bg-muted flex flex-col shrink-0
-        ${isSidebarOpen ? 'w-[240px]' : 'w-[64px] items-center'}
+        transition-all duration-200 border-r border-border bg-slate-950 text-slate-100 flex flex-col shrink-0 select-none shadow-md
+        ${isSidebarOpen ? 'w-[250px]' : 'w-[68px] items-center'}
       `}
     >
       {/* Brand Header */}
-      <div className="h-14 flex items-center px-4 w-full border-b border-border font-semibold text-foreground shrink-0 overflow-hidden">
+      <div className="h-14 flex items-center px-4 w-full border-b border-slate-800/80 shrink-0 overflow-hidden bg-slate-950">
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 bg-primary rounded-md shadow-sm shrink-0 flex items-center justify-center text-primary-foreground text-[10px] font-bold">
-            {templateConfig.brandAbbr}
+          <div className="w-8 h-8 bg-blue-600/20 border border-blue-500/40 rounded-lg shrink-0 flex items-center justify-center text-blue-400 text-xs font-extrabold tracking-wider shadow-sm">
+            {templateConfig.brandAbbr || 'AU'}
           </div>
-          <span className={`transition-all duration-200 whitespace-nowrap ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-            {templateConfig.brandName}
-          </span>
+          <div className={`transition-all duration-200 flex flex-col leading-tight ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
+            <span className="font-semibold text-white tracking-tight text-sm">
+              {templateConfig.brandName || 'AUREN'}
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono">Zero-Trust Enterprise</span>
+          </div>
         </div>
       </div>
       
       {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1 w-full">
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 space-y-4 w-full custom-scrollbar">
         {templateConfig.navigation.map((section, idx) => (
-          <div key={idx} className="mb-4">
-            <p className={`px-3 mb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest transition-all ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-              {section.title}
-            </p>
+          <div key={idx}>
+            {isSidebarOpen && (
+              <p className="px-3 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider transition-all">
+                {section.title}
+              </p>
+            )}
             <div className="space-y-1">
               {section.links.map((link, lidx) => (
                 <NavItem key={lidx} label={link.label} icon={link.icon} href={link.href} />
@@ -46,7 +51,7 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Footer Navigation */}
-      <div className="p-2 border-t border-border w-full bg-muted mt-auto">
+      <div className="p-2.5 border-t border-slate-800/80 w-full bg-slate-950 mt-auto">
         <NavItem label="Settings" icon={Settings} href="/settings" />
       </div>
     </aside>

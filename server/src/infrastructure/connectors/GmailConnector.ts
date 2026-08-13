@@ -6,7 +6,7 @@ export class GmailConnector implements IConnector {
     return 'GMAIL';
   }
 
-  async fetchResources(accessToken: string, organizationId: string): Promise<ConnectorResource[]> {
+  async fetchResources(accessToken: string, organizationId: string, userId: string): Promise<ConnectorResource[]> {
     console.log('GmailConnector: fetchResources called');
     
     try {
@@ -73,7 +73,10 @@ export class GmailConnector implements IConnector {
             threadId: msgData.threadId,
             externalCreatedAt: new Date(parseInt(msgData.internalDate)).toISOString(),
             externalUpdatedAt: new Date(parseInt(msgData.internalDate)).toISOString()
-          }
+          },
+          // Emails are strictly private to the authorizing user
+          allowedUsers: [userId],
+          allowedRoles: []
         });
       }
 

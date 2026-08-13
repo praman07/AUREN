@@ -15,6 +15,10 @@ import roleRoutes from './presentation/routes/roleRoutes';
 import auditLogRoutes from './presentation/routes/auditLogRoutes';
 import processingJobRoutes from './presentation/routes/processingJobRoutes';
 import authRoutes from './presentation/routes/authRoutes';
+import { createSuperAdminRoutes } from './presentation/routes/superAdminRoutes';
+import organizationRoutes from './presentation/routes/organizationRoutes';
+import connectorRoutes from './presentation/routes/connectorRoutes';
+import onboardingRoutes from './presentation/routes/onboardingRoutes';
 
 export const createApp = (): Application => {
   const app = express();
@@ -42,7 +46,13 @@ export const createApp = (): Application => {
     res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
   });
 
+  app.get('/readiness', (req: Request, res: Response) => {
+    res.status(200).json({ status: 'READY', timestamp: new Date().toISOString() });
+  });
+
   app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/onboarding', onboardingRoutes);
+  app.use('/api/v1/organization', organizationRoutes);
   app.use('/api/v1/documents', documentRoutes);
   app.use('/api/v1/semantic-search', semanticSearchRoutes);
   app.use('/api/v1/chat', chatRoutes);
@@ -51,6 +61,13 @@ export const createApp = (): Application => {
   app.use('/api/v1/roles', roleRoutes);
   app.use('/api/v1/audit-logs', auditLogRoutes);
   app.use('/api/v1/jobs', processingJobRoutes);
+  app.use('/api/v1/connectors', connectorRoutes);
+  app.use('/api/v1/super-admin', createSuperAdminRoutes());
+
+  // 404 handler for unknown routes
+  app.use((req: Request, res: Response) => {
+    res.status(404).json({ success: false, error: 'Not Found' });
+  });
 
   // 5. Error Handling
   app.use(errorHandler);

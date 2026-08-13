@@ -1,6 +1,28 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../core/api/useApi';
-import type { UserDetails } from '../types';
+
+export interface RoleItem {
+  id: string;
+  name: string;
+  permissions?: string[];
+  isDefault?: boolean;
+}
+
+export interface UserDetailsExt {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  organization: string;
+  department: string;
+  departmentId?: string | null;
+  roles: string[];
+  userRoles: { id: string; name: string }[];
+  clearanceLevel: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'INVITED' | 'SUSPENDED' | 'LOCKED';
+  lastActive: string | null;
+  createdAt: string;
+}
 
 export function useUsers() {
   const api = useApi();
@@ -8,21 +30,33 @@ export function useUsers() {
     queryKey: ['users'],
     queryFn: async () => {
       const response = await api.get('/users');
-      // The backend returns the Prisma User model.
-      // We will map it to the UserDetails type required by the frontend.
-      return response.data.map((user: any) => ({
+      const list = response.data || response;
+      return list.map((user: any) => ({
         id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
         email: user.email,
         organization: user.organizationId,
-        department: user.departmentId || 'Unassigned',
-        roles: user.roles || ['USER'], // fallback if roles not returned
-        clearanceLevel: user.clearanceLevel,
-        status: user.deletedAt ? 'SUSPENDED' : (user.clerkUserId ? 'ACTIVE' : 'INVITED'),
+        department: user.departmentName || user.departmentId || 'Unassigned',
+        departmentId: user.departmentId || null,
+        roles: user.roles && user.roles.length > 0 ? user.roles : ['USER'],
+        userRoles: user.userRoles || [],
+        clearanceLevel: user.isSuperAdmin ? 5 : 1,
+        status: user.isActive ? 'ACTIVE' : 'SUSPENDED',
         lastActive: user.updatedAt,
         createdAt: user.createdAt
-      })) as UserDetails[];
+      })) as UserDetailsExt[];
+    },
+  });
+}
+
+export function useRoles() {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const response = await api.get('/roles');
+      return (response.data || response) as RoleItem[];
     },
   });
 }
@@ -35,12 +69,57 @@ export function useInviteUser() {
     mutationFn: async (data: { email: string; role: string; department: string }) => {
       const payload = {
         email: data.email,
-        firstName: 'Pending',
+        firstName: 'New',
         lastName: 'User',
-        departmentId: data.department === 'Engineering' ? undefined : undefined, // In reality, we'd map string to UUID here, for now it's just passing email and roles
-        roles: [data.role]
+        roles: [data.role],
+        departmentId: data.department === 'Engineering' ? undefined : undefined
       };
       const response = await api.post('/users/invite', payload);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
+export function useAssignRole() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, roleId }: { userId: string; roleId: string }) => {
+      const response = await api.post('/super-admin/roles/assign', { userId, roleId });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
+export function useRemoveRole() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, roleId }: { userId: string; roleId: string }) => {
+      const response = await api.post('/super-admin/roles/remove', { userId, roleId });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
+export function useAssignDepartment() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, departmentId }: { userId: string; departmentId: string }) => {
+      const response = await api.post('/super-admin/departments/assign', { userId, departmentId });
       return response.data;
     },
     onSuccess: () => {
@@ -78,3 +157,4 @@ export function useReactivateUser() {
     },
   });
 }
+

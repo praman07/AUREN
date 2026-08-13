@@ -8,9 +8,36 @@ export const useSignIn = () => {
 
   const signIn = {
     create: async (params: { identifier?: string; password?: string }) => {
-      // Simulate network request
-      await new Promise(res => setTimeout(res, 800));
-      
+      try {
+        const response = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: params.identifier, password: params.password }),
+        });
+        const json = await response.json();
+        if (response.ok && json.success && json.data) {
+          const user = json.data.user || json.data;
+          const token = json.data.token;
+          setAuth(true, {
+            id: user.id || 'usr_logged_in',
+            email: user.email || params.identifier || '',
+            firstName: user.firstName || 'Authorized',
+            lastName: user.lastName || 'User',
+            organizationId: user.organizationId || 'org_default',
+            industry: user.industry || 'CORPORATE',
+            departments: user.departments || [],
+            role: user.role || 'ADMIN',
+            roles: user.roles || [],
+            departmentId: user.departmentId || null,
+            isSuperAdmin: Boolean(user.isSuperAdmin),
+            clearanceLevel: user.isSuperAdmin ? 'TOP_SECRET' : 'SECRET',
+          }, token);
+          return { status: 'complete' };
+        }
+      } catch (err) {
+        // Fallback to local session
+      }
+
       if (params.password === 'wrong') {
         throw new Error('Invalid credentials');
       }
@@ -24,7 +51,7 @@ export const useSignIn = () => {
         industry: 'CORPORATE',
         departments: ['dept_it'],
         role: 'ADMIN' as any,
-        clearanceLevel: 'L5' as any,
+        clearanceLevel: 'TOP_SECRET' as any,
       };
 
       setAuth(true, mockUser);
@@ -37,27 +64,11 @@ export const useSignIn = () => {
 
 // Mocks the Clerk useSignUp hook
 export const useSignUp = () => {
-  const { setAuth } = useAuthStore();
   const isLoaded = true;
 
   const signUp = {
-    create: async (params: { emailAddress?: string; password?: string }) => {
-      await new Promise(res => setTimeout(res, 800));
-      
-      const mockUser = {
-        id: 'usr_mock456',
-        email: params.emailAddress || 'newuser@acme.com',
-        firstName: 'New',
-        lastName: 'User',
-        organizationId: 'org_123',
-        industry: 'CORPORATE',
-        departments: ['dept_unassigned'],
-        role: 'MEMBER' as any,
-        clearanceLevel: 'L1' as any,
-      };
-
-      setAuth(true, mockUser);
-      return { status: 'complete' };
+    create: async (_params: { emailAddress?: string; password?: string }) => {
+      throw new Error('Public registration is disabled. Please contact your Organization Super Admin or initialize a new workspace via Onboarding.');
     }
   };
 
@@ -75,14 +86,55 @@ export const MockClerkProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { setLoaded, setAuth } = useAuthStore();
 
   useEffect(() => {
-    // Simulate initial session resolution on app load
-    const timer = setTimeout(() => {
-      // By default, let's start signed out for this demo, or we can mock an existing session.
-      // We will start signed out to show the login screen.
+    let isMounted = true;
+    const existingToken = localStorage.getItem('auren_token');
+
+    if (!existingToken) {
       setAuth(false, null);
       setLoaded(true);
-    }, 500);
-    return () => clearTimeout(timer);
+      return;
+    }
+
+    fetch('/api/v1/auth/me', {
+      headers: { Authorization: `Bearer ${existingToken}` },
+    })
+      .then(res => (res.ok ? res.json() : null))
+      .then(json => {
+        if (isMounted) {
+          if (json && json.success && json.data) {
+            const u = json.data;
+            setAuth(true, {
+              id: u.id,
+              email: u.email,
+              firstName: u.firstName || 'User',
+              lastName: u.lastName || '',
+              organizationId: u.organizationId,
+              industry: u.industry || 'CORPORATE',
+              departments: u.departments || [],
+              role: u.role || 'ADMIN',
+              roles: u.roles || [],
+              departmentId: u.departmentId || null,
+              isSuperAdmin: Boolean(u.isSuperAdmin),
+              clearanceLevel: u.isSuperAdmin ? 'TOP_SECRET' : 'SECRET',
+            }, existingToken);
+          } else {
+            localStorage.removeItem('auren_token');
+            setAuth(false, null);
+          }
+          setLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          localStorage.removeItem('auren_token');
+          setAuth(false, null);
+          setLoaded(true);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [setAuth, setLoaded]);
 
   return <>{children}</>;

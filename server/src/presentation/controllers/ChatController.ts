@@ -41,8 +41,9 @@ export class ChatController {
           message: validatedData.message,
           conversationId: validatedData.conversationId,
           organizationId: user.organizationId,
-          userId: user.id,
-          departmentIds: finalDepartmentIds
+          userId: req.user!.id,
+          roleIds: req.user!.roles,
+          departmentIds: req.user!.departments
         },
         (event) => {
           res.write(`data: ${JSON.stringify(event)}\n\n`);

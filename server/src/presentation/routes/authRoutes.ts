@@ -1,11 +1,15 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import { requireAuth } from '../middlewares/requireAuth';
+import { validateRequest } from '../middlewares/validateRequest';
+import { LoginSchema } from '../../application/dtos/AuthDTOs';
+import { AuthController } from '../controllers/AuthController';
+import { AuthService } from '../../application/services/AuthService';
 
 const router = Router();
+const authController = new AuthController(new AuthService());
 
-router.get('/me', requireAuth, (req: Request, res: Response) => {
-  // If requireAuth succeeds, req.user is guaranteed to exist and be populated from the DB.
-  res.status(200).json({ success: true, data: req.user });
-});
+router.post('/login', validateRequest(LoginSchema), authController.login);
+router.post('/logout', authController.logout);
+router.get('/me', requireAuth, authController.me);
 
 export default router;

@@ -23,6 +23,8 @@ export interface Document {
   id: string;
   title: string;
   classification: string;
+  visibility: 'PUBLIC' | 'DEPARTMENT' | 'RESTRICTED' | 'PRIVATE' | string;
+  departmentId?: string | null;
   mimeType: string;
   sizeBytes: number;
   isFavorited: boolean;
@@ -30,6 +32,24 @@ export interface Document {
   owner?: DocumentOwner;
   jobs?: DocumentJob[];
   versions?: DocumentVersion[];
+  allowedRoles?: string[];
+  deniedRoles?: string[];
+  allowedUsers?: string[];
+  deniedUsers?: string[];
+  allowedDepartments?: string[];
+  deniedDepartments?: string[];
+}
+
+export interface UpdateDocumentPermissionsPayload {
+  visibility?: 'PUBLIC' | 'DEPARTMENT' | 'RESTRICTED' | 'PRIVATE' | string;
+  classification?: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'RESTRICTED' | 'TOP_SECRET' | string;
+  departmentId?: string | null;
+  allowedRoles?: string[];
+  deniedRoles?: string[];
+  allowedUsers?: string[];
+  deniedUsers?: string[];
+  allowedDepartments?: string[];
+  deniedDepartments?: string[];
 }
 
 export function useDocuments() {
@@ -40,6 +60,7 @@ export function useDocuments() {
       const response = await api.get('/documents');
       return response.data as Document[];
     },
+    refetchInterval: 5000,
   });
 }
 
@@ -53,6 +74,7 @@ export function useDocument(id: string) {
       return response.data as Document;
     },
     enabled: !!id,
+    refetchInterval: 5000,
   });
 }
 
@@ -73,6 +95,22 @@ export function useUploadDocument() {
   });
 }
 
+export function useUpdateDocumentPermissions() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: UpdateDocumentPermissionsPayload }) => {
+      const response = await api.patch(`/documents/${id}`, payload);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['documents', variables.id] });
+    },
+  });
+}
+
 export function useDeleteDocument() {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -86,3 +124,4 @@ export function useDeleteDocument() {
     },
   });
 }
+

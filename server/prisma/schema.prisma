@@ -11,14 +11,6 @@ datasource db {
 // ENUMS
 // -----------------------------------------------------------------------------
 
-enum ClearanceLevel {
-  PUBLIC
-  INTERNAL
-  CONFIDENTIAL
-  SECRET
-  TOP_SECRET
-}
-
 enum DocumentClassification {
   UNCLASSIFIED
   RESTRICTED
@@ -76,27 +68,27 @@ enum DocumentVisibility {
 // -----------------------------------------------------------------------------
 
 model Organization {
-  id        String    @id @default(uuid())
+  id        String           @id @default(uuid())
   name      String
-  domain    String?   @unique
+  domain    String?          @unique
   industry  IndustryTemplate @default(CORPORATE)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
   deletedAt DateTime?
 
   // Relations
-  departments  Department[]
-  users        User[]
-  roles        Role[]
-  groups       Group[]
-  documents    Document[]
-  auditLogs    AuditLog[]
-  invitations  Invitation[]
-  apiKeys      APIKey[]
-  jobs         ProcessingJob[]
-  chunks       DocumentChunk[]
-  chats        Chat[]
-  messages     Message[]
+  departments       Department[]
+  users             User[]
+  roles             Role[]
+  groups            Group[]
+  documents         Document[]
+  auditLogs         AuditLog[]
+  invitations       Invitation[]
+  apiKeys           APIKey[]
+  jobs              ProcessingJob[]
+  chunks            DocumentChunk[]
+  chats             Chat[]
+  messages          Message[]
   connectedAccounts ConnectedAccount[]
 }
 
@@ -130,7 +122,8 @@ model User {
   email          String
   firstName      String?
   lastName       String?
-  clearanceLevel ClearanceLevel @default(INTERNAL)
+  passwordHash   String? // First-party session auth (scrypt)
+  isSuperAdmin   Boolean   @default(false)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
@@ -138,15 +131,15 @@ model User {
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  
+
   groupMembers        GroupMember[]
   userRoles           UserRole[]
-  ownedDocuments      Document[]            @relation("DocumentOwner")
+  ownedDocuments      Document[]           @relation("DocumentOwner")
   documentPermissions DocumentPermission[]
   chats               Chat[]
   messages            Message[]
   sessions            Session[]
-  auditLogs           AuditLog[]            @relation("AuditActor")
+  auditLogs           AuditLog[]           @relation("AuditActor")
   connectedAccounts   ConnectedAccount[]
 
   @@unique([organizationId, email])
@@ -175,13 +168,13 @@ model Role {
 }
 
 model Permission {
-  id             String    @id @default(uuid())
-  roleId         String
-  action         String    // e.g., "DOC_DELETE", "USER_INVITE"
-  resource       String    // e.g., "Document", "User"
-  conditions     Json?     // ABAC Conditions
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id         String   @id @default(uuid())
+  roleId     String
+  action     String // e.g., "DOC_DELETE", "USER_INVITE"
+  resource   String // e.g., "Document", "User"
+  conditions Json? // ABAC Conditions
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -212,7 +205,7 @@ model Group {
   deletedAt      DateTime?
 
   // Relations
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   members      GroupMember[]
   groupRoles   GroupRole[]
 
@@ -259,12 +252,15 @@ model ConnectedAccount {
   expiresAt      DateTime?
   status         String            @default("ACTIVE")
   lastSyncAt     DateTime?
+  lastSyncStatus String? // "SUCCESS" | "ERROR" | "PENDING"
+  lastError      String?           @db.Text
+  lastErrorAt    DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents      Document[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents    Document[]
 
   @@unique([provider, accountId])
   @@index([organizationId])
@@ -276,34 +272,41 @@ model ConnectedAccount {
 // -----------------------------------------------------------------------------
 
 model Document {
-  id             String                 @id @default(uuid())
-  organizationId String
-  ownerId        String
-  title          String
-  classification DocumentClassification @default(UNCLASSIFIED)
-  mimeType       String
-  sizeBytes      Int
-  isFavorited    Boolean                @default(false)
-  visibility     DocumentVisibility     @default(PRIVATE)
-  departmentId   String?
-  sourceType     SourceType             @default(UPLOAD)
-  externalId     String?
-  sourceUrl      String?
+  id                 String                 @id @default(uuid())
+  organizationId     String
+  ownerId            String
+  title              String
+  classification     DocumentClassification @default(UNCLASSIFIED)
+  mimeType           String
+  sizeBytes          Int
+  isFavorited        Boolean                @default(false)
+  visibility         DocumentVisibility     @default(PRIVATE)
+  departmentId       String?
+  sourceType         SourceType             @default(UPLOAD)
+  externalId         String?
+  sourceUrl          String?
   connectedAccountId String?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  deletedAt      DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  deletedAt          DateTime?
+
+  allowedRoles       String[] @default([])
+  allowedUsers       String[] @default([])
+  allowedDepartments String[] @default([])
+  deniedRoles        String[] @default([])
+  deniedUsers        String[] @default([])
+  deniedDepartments  String[] @default([])
 
   // Relations
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  owner        User         @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  owner            User              @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  department       Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   connectedAccount ConnectedAccount? @relation(fields: [connectedAccountId], references: [id], onDelete: SetNull)
-  
-  versions     DocumentVersion[]
-  permissions  DocumentPermission[]
-  jobs         ProcessingJob[]
-  chunks       DocumentChunk[]
+
+  versions    DocumentVersion[]
+  permissions DocumentPermission[]
+  jobs        ProcessingJob[]
+  chunks      DocumentChunk[]
 
   @@index([organizationId])
   @@index([ownerId])
@@ -320,7 +323,7 @@ model DocumentVersion {
   deletedAt  DateTime?
 
   // Relations
-  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
   chunks   DocumentChunk[]
 
   @@unique([documentId, version])
@@ -332,7 +335,7 @@ model ProcessingJob {
   organizationId String
   documentId     String
   queueName      String
-  status         String    // "PENDING", "PROCESSING", "COMPLETED", "FAILED"
+  status         String // "PENDING", "PROCESSING", "COMPLETED", "FAILED"
   attempts       Int       @default(0)
   maxAttempts    Int       @default(5)
   error          String?   @db.Text
@@ -353,30 +356,30 @@ model ProcessingJob {
 }
 
 model DocumentChunk {
-  id              String   @id // Deterministic ID based on content hash
+  id              String    @id // Deterministic ID based on content hash
   organizationId  String
   documentId      String
   versionId       String
   chunkIndex      Int
-  text            String   @db.Text
+  text            String    @db.Text
   tokenCount      Int
   pageNumbers     String?
   sectionTitle    String?
   metadata        Json?
-  embeddingStatus String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  embeddingStatus String    @default("PENDING") // PENDING, COMPLETED, FAILED
   embeddingModel  String?
   embeddingDim    Int?
   vectorData      Float[]
-  indexingStatus  String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  indexingStatus  String    @default("PENDING") // PENDING, COMPLETED, FAILED
   indexedAt       DateTime?
   qdrantPointId   String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
-  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  document        Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  version         DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document     Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version      DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([documentId])
@@ -388,7 +391,7 @@ model DocumentPermission {
   id         String   @id @default(uuid())
   documentId String
   userId     String
-  accessType String   // "READ", "WRITE"
+  accessType String // "READ", "WRITE"
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -427,8 +430,8 @@ model Message {
   id             String   @id @default(uuid())
   organizationId String
   chatId         String
-  userId         String?  // null if system/AI
-  role           String   // "user", "assistant", "system"
+  userId         String? // null if system/AI
+  role           String // "user", "assistant", "system"
   content        String   @db.Text
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -468,14 +471,14 @@ model AuditLog {
 }
 
 model Invitation {
-  id             String    @id @default(uuid())
+  id             String   @id @default(uuid())
   organizationId String
   email          String
-  token          String    @unique
+  token          String   @unique
   roleId         String?
   expiresAt      DateTime
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -485,12 +488,14 @@ model Invitation {
 }
 
 model Session {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  ipAddress String?
+  userAgent String?
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -21,10 +21,19 @@ export const errorHandler = (
     });
   }
 
+  const statusCode = (err as any).statusCode || (err as any).status || 500;
+  if (statusCode >= 400 && statusCode < 500) {
+    logger.warn({ err, path: req.path }, err.message);
+    return res.status(statusCode).json({
+      success: false,
+      error: err.message || 'Client error',
+    });
+  }
+
   // Handle generic unknown errors
   logger.error(err, 'Unhandled Exception');
   return res.status(500).json({
     success: false,
-    error: 'Internal Server Error',
+    error: err.message || 'Internal Server Error',
   });
 };

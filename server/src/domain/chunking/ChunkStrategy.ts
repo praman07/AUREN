@@ -22,7 +22,7 @@ export class ChunkStrategy {
     return `${hex.substring(0,8)}-${hex.substring(8,12)}-${hex.substring(12,16)}-${hex.substring(16,20)}-${hex.substring(20,32)}`;
   }
 
-  public generateChunks(sections: RawSection[], documentId: string, versionId: string, organizationId: string): any[] {
+  public generateChunks(sections: RawSection[], documentId: string, versionId: string, organizationId: string, baseMetadata: Record<string, any> = {}): any[] {
     const chunks: any[] = [];
     let chunkIndex = 0;
 
@@ -39,7 +39,7 @@ export class ChunkStrategy {
 
         if (currentTokens + blockTokens > this.options.maxTokens) {
           // Flush buffer to chunk
-          chunks.push(this.createChunkRecord(documentId, versionId, organizationId, chunkIndex++, currentBuffer, currentTokens, section));
+          chunks.push(this.createChunkRecord(documentId, versionId, organizationId, chunkIndex++, currentBuffer, currentTokens, section, baseMetadata));
           
           // Handle overlap (stubbed: just take last 20% of previous text)
           currentBuffer = block;
@@ -52,14 +52,14 @@ export class ChunkStrategy {
       
       // Flush remaining
       if (currentBuffer) {
-        chunks.push(this.createChunkRecord(documentId, versionId, organizationId, chunkIndex++, currentBuffer, currentTokens, section));
+        chunks.push(this.createChunkRecord(documentId, versionId, organizationId, chunkIndex++, currentBuffer, currentTokens, section, baseMetadata));
       }
     }
 
     return chunks;
   }
 
-  private createChunkRecord(documentId: string, versionId: string, organizationId: string, chunkIndex: number, text: string, tokenCount: number, section: RawSection) {
+  private createChunkRecord(documentId: string, versionId: string, organizationId: string, chunkIndex: number, text: string, tokenCount: number, section: RawSection, baseMetadata: Record<string, any>) {
     return {
       id: ChunkStrategy.generateStableId(documentId, versionId, chunkIndex, text),
       organizationId,
@@ -70,7 +70,12 @@ export class ChunkStrategy {
       tokenCount,
       pageNumbers: section.pageNumbers,
       sectionTitle: section.title,
-      embeddingStatus: 'PENDING'
+      embeddingStatus: 'PENDING',
+      metadata: {
+        ...baseMetadata,
+        pageNumbers: section.pageNumbers,
+        sectionTitle: section.title
+      }
     };
   }
 }

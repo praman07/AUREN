@@ -6,7 +6,7 @@ export class NotionConnector implements IConnector {
     return 'NOTION';
   }
 
-  async fetchResources(accessToken: string, organizationId: string): Promise<ConnectorResource[]> {
+  async fetchResources(accessToken: string, organizationId: string, userId: string): Promise<ConnectorResource[]> {
     console.log('NotionConnector: fetchResources called');
     
     // We use the Notion API to search for all pages the integration has access to
@@ -59,7 +59,10 @@ export class NotionConnector implements IConnector {
           metadata: {
             externalCreatedAt: page.created_time,
             externalUpdatedAt: page.last_edited_time
-          }
+          },
+          // For MVP, assume Notion workspaces are ORG_WIDE shared spaces
+          allowedUsers: [],
+          allowedRoles: []
         });
       }
 

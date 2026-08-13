@@ -18,7 +18,13 @@ export class QdrantIndexingService {
           organizationId: true,
           departmentId: true,
           visibility: true,
-          ownerId: true
+          ownerId: true,
+          allowedRoles: true,
+          deniedRoles: true,
+          allowedUsers: true,
+          deniedUsers: true,
+          allowedDepartments: true,
+          deniedDepartments: true
         }
       });
 
@@ -81,6 +87,14 @@ export class QdrantIndexingService {
             documentId: chunk.documentId,
             documentVersionId: chunk.versionId,
             chunkId: chunk.id,
+
+            // Zero-Trust Policy Metadata (must be indexed with every point)
+            allowedRoles: document.allowedRoles,
+            deniedRoles: document.deniedRoles,
+            allowedUsers: document.allowedUsers,
+            deniedUsers: document.deniedUsers,
+            allowedDepartments: document.allowedDepartments,
+            deniedDepartments: document.deniedDepartments,
             
             // Context Metadata
             pageNumbers: chunk.pageNumbers,

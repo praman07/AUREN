@@ -19,6 +19,11 @@ import { EmbeddingService } from './application/services/EmbeddingService';
 import { QdrantIndexingService } from './application/services/QdrantIndexingService';
 import { WorkerManager } from './infrastructure/queue/WorkerManager';
 import { AIGateway } from './infrastructure/gateway/AIGateway';
+import { ConnectorRegistry } from './application/connectors/ConnectorRegistry';
+import { GitHubConnector } from './infrastructure/connectors/GitHubConnector';
+import { GmailConnector } from './infrastructure/connectors/GmailConnector';
+import { NotionConnector } from './infrastructure/connectors/NotionConnector';
+import { ConnectorService } from './application/connectors/ConnectorService';
 
 // Repositories
 export const documentRepository = new DocumentRepository();
@@ -48,3 +53,10 @@ export const qdrantIndexingService = new QdrantIndexingService(orchestrator, pro
 
 // Workers
 export const workerManager = new WorkerManager(ocrService, chunkingService, embeddingService, qdrantIndexingService);
+
+// Connector registry — register real providers at startup so HTTP sync works
+ConnectorRegistry.getInstance().register(new GitHubConnector());
+ConnectorRegistry.getInstance().register(new GmailConnector());
+ConnectorRegistry.getInstance().register(new NotionConnector());
+
+export const connectorService = new ConnectorService(orchestrator, storageProvider);

@@ -179,9 +179,9 @@ async function runMasterPipeline() {
       message: 'What is the secret launch code?',
       query: 'What is the secret launch code?',
       organizationId: orgId,
+      roleIds: [],
       departmentIds: [deptId],
       userId: empId,
-      clearanceLevel: 1,
       limit: 5
     };
     
@@ -227,7 +227,7 @@ async function runMasterPipeline() {
     
     // 2. Department isolation
     await prisma.document.update({ where: { id: localPayload.documentId }, data: { visibility: 'DEPARTMENT', departmentId: deptId }});
-    const searchOtherDept = await retrievalEngine.search({ ...secureReq, departmentIds: [otherDeptId] });
+    const searchOtherDept = await retrievalEngine.search({ ...secureReq, roleIds: [], departmentIds: [otherDeptId] });
     if (searchOtherDept.chunks.length === 0) results['13. Department isolation'] = 'PASS';
     
     // 3. Org isolation

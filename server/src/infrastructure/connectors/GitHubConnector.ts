@@ -7,7 +7,7 @@ export class GitHubConnector implements IConnector {
     return 'GITHUB';
   }
 
-  async fetchResources(accessToken: string, organizationId: string): Promise<ConnectorResource[]> {
+  async fetchResources(accessToken: string, organizationId: string, userId: string): Promise<ConnectorResource[]> {
     try {
       // 1. Fetch accessible repositories for the authenticated user
       const reposResponse = await fetch(`https://api.github.com/user/repos?per_page=5`, {
@@ -53,7 +53,11 @@ export class GitHubConnector implements IConnector {
               branch: repo.default_branch,
               externalCreatedAt: repo.created_at,
               externalUpdatedAt: repo.updated_at
-            }
+            },
+            // If the repo is private, only the authorizing user can access it.
+            // If public, we allow ORG_WIDE (no restrictions) in MVP.
+            allowedUsers: repo.private ? [userId] : [],
+            allowedRoles: []
           });
         } catch (readmeErr) {
           console.warn(`Could not fetch README for ${repoName}`);
@@ -67,8 +71,8 @@ export class GitHubConnector implements IConnector {
     }
   }
 
-  async fetchIncremental(accessToken: string, organizationId: string, lastSyncAt: Date): Promise<ConnectorResource[]> {
+  async fetchIncremental(accessToken: string, organizationId: string, userId: string, lastSyncAt: Date): Promise<ConnectorResource[]> {
     // Incremental not yet implemented for MVP proof
-    return this.fetchResources(accessToken, organizationId);
+    return this.fetchResources(accessToken, organizationId, userId);
   }
 }

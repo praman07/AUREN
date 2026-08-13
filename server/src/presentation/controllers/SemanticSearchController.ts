@@ -36,8 +36,9 @@ export class SemanticSearchController {
       const searchRequest = {
         query: validatedData.query,
         organizationId: user.organizationId,
-        userId: user.id,
+        userId: req.user!.id,
         departmentIds: finalDepartmentIds,
+        roleIds: req.user!.roles,
         limit: validatedData.limit,
         filters: validatedData.filters
       };

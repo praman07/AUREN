@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import * as crypto from 'crypto';
 import { IStorageProvider } from '../../infrastructure/storage/IStorageProvider';
 import { IDocumentRepository } from '../../infrastructure/repositories/DocumentRepository';
 import { IAuditLogRepository } from '../../infrastructure/repositories/AuditLogRepository';
@@ -57,7 +58,7 @@ export class UploadService {
             id: versionId,
             version: 1,
             s3Key: storagePath,
-            hash: 'mock-hash',
+            hash: crypto.createHash('sha256').update(fileBuffer).digest('hex'),
             document: { connect: { id: documentId } }
           }
         });

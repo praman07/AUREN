@@ -11,7 +11,7 @@ function testPermissionFiltering() {
     query: 'salary guidelines',
     organizationId: 'org_1',
     userId: 'user_1',
-    departmentIds: ['dept_hr', 'dept_eng'],
+    roleIds: [], departmentIds: ['dept_hr', 'dept_eng'],
     limit: 5
   };
   
@@ -30,7 +30,7 @@ function testPermissionFiltering() {
     query: 'company roadmap',
     organizationId: 'org_1',
     userId: 'user_contractor',
-    departmentIds: [],
+    roleIds: [], departmentIds: [],
     limit: 5
   };
   

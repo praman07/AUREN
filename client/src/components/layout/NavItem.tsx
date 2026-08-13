@@ -21,22 +21,20 @@ export const NavItem: React.FC<NavItemProps> = ({ label, icon: Icon, href }) => 
       to={href}
       aria-current={isActive ? 'page' : undefined}
       className={`
-        flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 outline-none
-        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1
+        flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150 outline-none group text-xs font-medium
         ${
           isActive 
-            ? 'bg-white shadow-sm border border-border text-primary font-medium' 
-            : 'text-muted-foreground hover:bg-slate-200/50 hover:text-foreground border border-transparent'
+            ? 'bg-blue-600/20 text-white border border-blue-500/40 shadow-xs' 
+            : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200 border border-transparent'
         }
       `}
       title={isSidebarOpen ? undefined : label}
     >
-      <Icon size={18} className={`shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+      <Icon size={16} className={`shrink-0 transition-colors ${isActive ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-200'}`} />
       
-      {/* Text smoothly fades/shrinks when sidebar closes */}
       <span 
-        className={`whitespace-nowrap transition-all duration-200 overflow-hidden text-sm ${
-          isSidebarOpen ? 'w-auto opacity-100 ml-1' : 'w-0 opacity-0 ml-0'
+        className={`whitespace-nowrap transition-all duration-200 overflow-hidden ${
+          isSidebarOpen ? 'w-auto opacity-100' : 'w-0 opacity-0'
         }`}
       >
         {label}

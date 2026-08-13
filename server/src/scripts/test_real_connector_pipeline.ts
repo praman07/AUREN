@@ -104,6 +104,7 @@ async function runConnectorTest() {
     await prisma.document.deleteMany();
     await prisma.user.deleteMany();
     await prisma.department.deleteMany();
+    await prisma.role.deleteMany();
     await prisma.organization.deleteMany();
 
     const orgId = randomUUID();
@@ -147,7 +148,7 @@ async function runConnectorTest() {
         // 1st resource: Private to Alice
         // 2nd resource: Engineering Dept
         // 3rd resource: Org Wide
-        let visibility = DocumentVisibility.PRIVATE;
+        let visibility: DocumentVisibility = DocumentVisibility.PRIVATE;
         let deptIdForDoc = null;
 
         if (i === 1) {
@@ -165,11 +166,17 @@ async function runConnectorTest() {
             title: res.title,
             mimeType: res.mimeType,
             sizeBytes: res.sizeBytes,
-            sourceType: provider,
+            sourceType: provider as any,
             externalId: res.externalId,
             sourceUrl: res.sourceUrl,
             connectedAccountId: accountId,
-            visibility: visibility
+            visibility: visibility,
+            allowedRoles: res.allowedRoles || [],
+            allowedUsers: res.allowedUsers || [],
+            allowedDepartments: res.allowedDepartments || [],
+            deniedRoles: res.deniedRoles || [],
+            deniedUsers: res.deniedUsers || [],
+            deniedDepartments: res.deniedDepartments || []
           }
         });
         docIds.push(doc.id);
@@ -248,7 +255,7 @@ async function runConnectorTest() {
       const GitHubConnectorModule = require('../infrastructure/connectors/GitHubConnector');
       const gh = new GitHubConnectorModule.GitHubConnector();
       try {
-        const ghResources = await gh.fetchResources(githubToken, orgId);
+        const ghResources = await gh.fetchResources(githubToken, orgId, aliceEngId);
         if (ghResources.length > 0) {
           console.log(`Fetched ${ghResources.length} GitHub resources.`);
           await processConnectorResources(ghResources.slice(0, 3), ghAccount.id, 'GITHUB', 'GITHUB');
@@ -273,10 +280,14 @@ async function runConnectorTest() {
       const NotionConnectorModule = require('../infrastructure/connectors/NotionConnector');
       const notion = new NotionConnectorModule.NotionConnector();
       try {
-        const notionResources = await notion.fetchResources(notionToken, orgId);
+        const notionResources = await notion.fetchResources(notionToken, orgId, aliceEngId);
         if (notionResources.length > 0) {
           console.log(`Fetched ${notionResources.length} Notion resources.`);
-          await processConnectorResources(notionResources.slice(0, 3), notionAccount.id, 'NOTION', 'NOTION');
+          // Prefer resources with actual text content to ensure chunking and embedding are tested
+          const validResources = notionResources.filter((r: any) => r.content && r.content.trim().length > 0);
+          const resourcesToProcess = validResources.length > 0 ? validResources.slice(0, 3) : notionResources.slice(0, 3);
+          
+          await processConnectorResources(resourcesToProcess, notionAccount.id, 'NOTION', 'NOTION');
         } else {
           console.log('Notion fetch succeeded but returned 0 resources.');
         }
@@ -322,10 +333,10 @@ async function runConnectorTest() {
            throw new Error(`Token exchange failed: ${tokenRes.status} ${tokenRes.statusText}`);
         }
         
-        const tokenData = await tokenRes.json();
+        const tokenData = await tokenRes.json() as any;
         const accessToken = tokenData.access_token;
         
-        const gmailResources = await gmail.fetchResources(accessToken, orgId);
+        const gmailResources = await gmail.fetchResources(accessToken, orgId, aliceEngId);
         if (gmailResources.length > 0) {
           console.log(`Fetched ${gmailResources.length} Gmail resources.`);
           await processConnectorResources(gmailResources.slice(0, 3), gmailAccount.id, 'GMAIL', 'GMAIL');
@@ -345,11 +356,11 @@ async function runConnectorTest() {
       let securityPassed = true;
 
       // A. Authorized employee can retrieve permitted information.
-      const aliceQuery = (await retrievalEngine.search({ query: "What is the content of the fetched documents?", userId: aliceEngId, organizationId: orgId, departmentIds: [deptEng], limit: 10 })).chunks;
+      const aliceQuery = (await retrievalEngine.search({ query: "What is the content of the fetched documents?", userId: aliceEngId, organizationId: orgId, roleIds: [], departmentIds: [deptEng], limit: 10 })).chunks;
       if (aliceQuery.length === 0) { console.log('Fail A: Alice got 0 chunks'); securityPassed = false; }
 
       // B. Unauthorized employee cannot retrieve employee-private information.
-      const bobQuery = (await retrievalEngine.search({ query: "What is the content of the fetched documents?", userId: bobHrId, organizationId: orgId, departmentIds: [deptHR], limit: 10 })).chunks;
+      const bobQuery = (await retrievalEngine.search({ query: "What is the content of the fetched documents?", userId: bobHrId, organizationId: orgId, roleIds: [], departmentIds: [deptHR], limit: 10 })).chunks;
       // Bob should not see Alice's PRIVATE documents
       const seesPrivate = bobQuery.some(c => c.metadata.visibility === 'PRIVATE');
       if (seesPrivate) { console.log('Fail B: Bob saw private'); securityPassed = false; }
@@ -360,7 +371,7 @@ async function runConnectorTest() {
       if (seesEngDept) { console.log('Fail C: Bob saw Eng docs'); securityPassed = false; }
 
       // D. Employee cannot retrieve another organization's information.
-      const spyQuery = (await retrievalEngine.search({ query: "What is the content of the fetched documents?", userId: spyId, organizationId: org2Id, departmentIds: [], limit: 10 })).chunks;
+      const spyQuery = (await retrievalEngine.search({ query: "What is the content of the fetched documents?", userId: spyId, organizationId: org2Id, roleIds: [], departmentIds: [], limit: 10 })).chunks;
       if (spyQuery.length > 0) { console.log('Fail D: Spy got data'); securityPassed = false; }
 
       // E. Organization-level information is retrievable when authorized.
@@ -386,7 +397,7 @@ async function runConnectorTest() {
         message: "What is the secret passcode to the moon base? (If you do not know, say 'I don't have enough information')",
         organizationId: orgId,
         userId: aliceEngId,
-        departmentIds: [deptEng]
+        roleIds: [], departmentIds: [deptEng]
       }, (event) => {
         if (event.type === 'token') {
           unknownAnswer += event.data;
@@ -409,7 +420,7 @@ async function runConnectorTest() {
         await qdrant.delete(`org_${orgId}_docs`, { filter: { must: [{ key: "documentId", match: { value: docsToDelete[0].id } }] }});
         
         // Verify it's gone
-        const postDeleteQuery = (await retrievalEngine.search({ query: "fetch", userId: aliceEngId, organizationId: orgId, departmentIds: [deptEng], limit: 10 })).chunks;
+        const postDeleteQuery = (await retrievalEngine.search({ query: "fetch", userId: aliceEngId, organizationId: orgId, roleIds: [], departmentIds: [deptEng], limit: 10 })).chunks;
         const containsDeleted = postDeleteQuery.some(c => c.metadata.documentId === docsToDelete[0].id);
         if (!containsDeleted) {
           results['[PIPELINE] DELETION PROPAGATION'] = 'PASS';

@@ -34,7 +34,7 @@ async function runGitHubIntegrationTest() {
     
     console.log(`1. Fetching resources from GitHub...`);
     // Using a public repo known to have text
-    const resources = await githubConnector.fetchResources('hwchase17/langchain', org.id);
+    const resources = await githubConnector.fetchResources('dummy_token', org.id, user.id);
     
     if (resources.length === 0) {
       throw new Error('No resources fetched from GitHub');

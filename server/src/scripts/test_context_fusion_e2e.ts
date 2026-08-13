@@ -36,7 +36,7 @@ async function runContextFusionE2E() {
       limit: 5,
       organizationId: 'test_org',
       userId: 'test_user',
-      departmentIds: ['hr', 'engineering']
+      roleIds: [], departmentIds: ['hr', 'engineering']
     });
 
     console.log(`[PASS] Context Fusion executed. Retrieved ${result.totalFound} chunks.`);

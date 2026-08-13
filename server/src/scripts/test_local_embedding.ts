@@ -222,7 +222,7 @@ async function runLocalEmbeddingTest() {
     const searchRes = await retrievalEngine.search({
       query: 'HR policy',
       organizationId: orgA,
-      departmentIds: [],
+      roleIds: [], departmentIds: [],
       userId: empA,
       limit: 10
     });
@@ -258,7 +258,7 @@ async function runLocalEmbeddingTest() {
     const searchResAfter = await retrievalEngine.search({
       query: 'HR policy',
       organizationId: orgA,
-      departmentIds: [],
+      roleIds: [], departmentIds: [],
       userId: empA,
       limit: 10
     });

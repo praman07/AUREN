@@ -149,7 +149,7 @@ async function runSecurityTest() {
         ragService.streamChat({
           message: query,
           organizationId: orgId,
-          departmentIds: deptIds,
+          roleIds: [], departmentIds: deptIds,
           userId: userId
         }, (event) => {
           if (event.type === 'token') finalAnswer += event.data;
@@ -216,7 +216,7 @@ async function runSecurityTest() {
         results['[PASS] Grounding / unknown question handling'] = 'PASS';
       }
 
-      const retrieved = await retrievalEngine.search({ query: 'HR salary policy', organizationId: orgAcme, departmentIds: [deptEng], userId: alice, limit: 10 });
+      const retrieved = await retrievalEngine.search({ query: 'HR salary policy', organizationId: orgAcme, roleIds: [], departmentIds: [deptEng], userId: alice, limit: 10 });
       if (!retrieved.chunks.some((c: any) => c.content.includes('SIG_HR_SALARY'))) {
         results['[PASS] Retrieved chunk authorization'] = 'PASS';
       }
@@ -230,7 +230,7 @@ async function runSecurityTest() {
         results['[PASS] Provenance preservation'] = 'PASS';
       } else {
         // If query returned no chunks it's still safe. Let's do a positive query.
-        const posRetrieved = await retrievalEngine.search({ query: 'holiday policy', organizationId: orgAcme, departmentIds: [deptEng], userId: alice, limit: 10 });
+        const posRetrieved = await retrievalEngine.search({ query: 'holiday policy', organizationId: orgAcme, roleIds: [], departmentIds: [deptEng], userId: alice, limit: 10 });
         if (posRetrieved.chunks.length > 0 && (posRetrieved.chunks[0] as any).organizationId === orgAcme) {
           results['[PASS] Provenance preservation'] = 'PASS';
         }

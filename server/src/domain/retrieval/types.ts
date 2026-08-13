@@ -18,6 +18,7 @@ export interface SearchRequest {
   organizationId: string;
   userId: string;
   departmentIds: string[];
+  roleIds: string[];
   limit: number;
   filters?: Record<string, any>;
 }

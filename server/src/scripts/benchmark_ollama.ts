@@ -108,7 +108,8 @@ async function runBenchmark() {
         query: scenario.query,
         organizationId: orgId,
         departmentIds: [],
-        userId: empId,
+        roleIds: [],
+        userId: randomUUID(),
         clearanceLevel: 1,
         limit: 5
       };

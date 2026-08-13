@@ -1,118 +1,62 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { ClerkExpressWithAuth, LooseAuthProp } from '@clerk/clerk-sdk-node';
-import { env } from '../../shared/config/env';
-
-const prisma = new PrismaClient();
+import { AuthService } from '../../application/services/AuthService';
 
 // Extends Request to include user context
 declare global {
   namespace Express {
-    interface Request extends LooseAuthProp {
-      user?: { 
-        id: string; 
+    interface Request {
+      user?: {
+        id: string;
+        email: string;
         organizationId: string;
         industry: string;
-        role: string; 
+        role: string;
+        roles: string[];
         departments: string[];
-        clearanceLevel: string;
+        departmentId: string | null;
+        isSuperAdmin: boolean;
       };
     }
   }
 }
 
-export const requireAuth = [
-  // First, let Clerk try to authenticate the request.
-  // It populates req.auth if successful, but doesn't throw if not (WithAuth).
-  ClerkExpressWithAuth(),
-  async (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ success: false, error: 'Unauthorized: No token provided' });
+const authService = new AuthService();
+
+export const extractBearerToken = (req: Request): string | null => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1]?.trim() || null;
+  }
+  const cookieToken = (req as any).cookies?.session_token;
+  if (typeof cookieToken === 'string' && cookieToken.length > 0) {
+    return cookieToken;
+  }
+  return null;
+};
+
+/**
+ * First-party session authentication.
+ * Resolves the bearer token (or session_token cookie) to a live Session row,
+ * derives the server-side user context (organization, roles, departments,
+ * super-admin flag), and attaches it to req.user.
+ */
+export const requireAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const token = extractBearerToken(req);
+  if (!token) {
+    res.status(401).json({ success: false, error: 'Unauthorized: No session token provided' });
+    return;
+  }
+
+  try {
+    const user = await authService.resolveSession(token);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'Unauthorized: Invalid or expired session' });
       return;
     }
-    
-    const token = authHeader.split(' ')[1];
 
-    try {
-      let clerkUserId: string | null = null;
-      let email: string | null = null;
-
-      if (env.NODE_ENV !== 'production' && env.DEV_AUTH_MOCK === 'true') {
-        // Development mode override to allow local testing without valid Clerk keys.
-        try {
-          const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-          const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString());
-          clerkUserId = payload.sub;
-          email = payload.email || payload.primary_email_address || null;
-        } catch (err) {
-          res.status(401).json({ success: false, error: 'Unauthorized: Invalid token format' });
-          return;
-        }
-      } else {
-        // Production JWT verification relies on ClerkExpressWithAuth
-        if (!req.auth || !req.auth.userId) {
-          res.status(401).json({ success: false, error: 'Unauthorized: Invalid token claims' });
-          return;
-        }
-        clerkUserId = req.auth.userId;
-      }
-
-      if (!clerkUserId) {
-        res.status(401).json({ success: false, error: 'Unauthorized: Missing user ID' });
-        return;
-      }
-
-      // Lookup local User by provider ID (clerkUserId)
-      let user = await prisma.user.findUnique({
-        where: { clerkUserId },
-        include: {
-          userRoles: { include: { role: true } },
-          organization: true,
-        }
-      });
-
-      // Fallback: Link seeded user if matched by email
-      if (!user && email) {
-        user = await prisma.user.findFirst({
-          where: { email },
-          include: {
-            userRoles: { include: { role: true } },
-            organization: true,
-          }
-        });
-
-        if (user) {
-          user = await prisma.user.update({
-            where: { id: user.id },
-            data: { clerkUserId },
-            include: {
-              userRoles: { include: { role: true } },
-              organization: true,
-            }
-          });
-        }
-      }
-
-      if (!user) {
-        res.status(403).json({ success: false, error: 'Forbidden: User not found in EKOS local database' });
-        return;
-      }
-
-      // Construct server-derived req.user
-      req.user = {
-        id: user.id,
-        organizationId: user.organizationId,
-        industry: user.organization.industry,
-        role: user.userRoles[0]?.role.name || 'MEMBER',
-        departments: user.departmentId ? [user.departmentId] : [],
-        clearanceLevel: user.clearanceLevel
-      };
-      
-      next();
-    } catch (error: any) {
-      console.error('Authentication Error:', error.message);
-      res.status(401).json({ success: false, error: 'Unauthorized: Invalid or expired token' });
-    }
+    req.user = user;
+    next();
+  } catch (error: any) {
+    res.status(401).json({ success: false, error: 'Unauthorized: Invalid or expired session' });
   }
-] as any;
+};

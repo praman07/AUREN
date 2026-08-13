@@ -8,6 +8,7 @@ export interface RAGRequest {
   organizationId: string;
   userId: string;
   departmentIds: string[];
+  roleIds: string[];
 }
 
 export interface ChatStreamEvent {
@@ -59,6 +60,7 @@ export class RAGService {
         organizationId: request.organizationId,
         userId: request.userId,
         departmentIds: request.departmentIds,
+        roleIds: request.roleIds,
         limit: 10
       });
 
@@ -71,6 +73,7 @@ export class RAGService {
         organizationId: request.organizationId,
         userId: request.userId,
         departmentIds: request.departmentIds,
+        roleIds: request.roleIds,
         limit: 10
       });
       

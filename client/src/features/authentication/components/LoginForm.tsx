@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useSignIn } from '@clerk/clerk-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useSignIn } from '../../../core/auth/providers/MockClerkProvider';
 import { AuthSplitLayout } from './layout/AuthSplitLayout';
 
 export const LoginForm: React.FC = () => {
   const { signIn, isLoaded } = useSignIn();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  const from = (location.state as any)?.from?.pathname || '/dashboard';
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,7 +29,7 @@ export const LoginForm: React.FC = () => {
       });
 
       if (result.status === 'complete') {
-        navigate('/dashboard');
+        navigate(from, { replace: true });
       } else {
         setError('Verification required. Check your email.');
       }

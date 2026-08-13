@@ -38,26 +38,23 @@ export interface TemplateConfig {
 
 export const CorporateTemplate: TemplateConfig = {
   industry: 'CORPORATE',
-  brandName: 'Knowledge OS',
-  brandAbbr: 'EK',
+  brandName: 'AUREN Knowledge',
+  brandAbbr: 'AU',
   navigation: [
     {
-      title: 'Knowledge',
+      title: 'Workspace',
       links: [
         { label: 'Dashboard', icon: BarChart3, href: '/dashboard' },
-        { label: 'Semantic Search', icon: Search, href: '/search' },
-        { label: 'Conversations', icon: Sparkles, href: '/chat' },
-        { label: 'Memory Console', icon: BrainCircuit, href: '/memory' },
-        { label: 'Documents', icon: FileText, href: '/documents' },
+        { label: 'AI Assistant', icon: Sparkles, href: '/chat' },
+        { label: 'Knowledge', icon: FileText, href: '/documents' },
       ],
     },
     {
-      title: 'Administration',
+      title: 'Organization',
       links: [
-        { label: 'Users', icon: Users, href: '/users' },
-        { label: 'Departments', icon: Building2, href: '/departments' },
-        { label: 'Audit Logs', icon: ShieldAlert, href: '/audit-logs' },
-        { label: 'Processing Jobs', icon: Activity, href: '/jobs' },
+        { label: 'Team', icon: Users, href: '/users' },
+        { label: 'Access Control', icon: Building2, href: '/departments' },
+        { label: 'Integrations & Settings', icon: Briefcase, href: '/settings' },
       ],
     }
   ]
@@ -65,26 +62,23 @@ export const CorporateTemplate: TemplateConfig = {
 
 export const HospitalTemplate: TemplateConfig = {
   industry: 'HOSPITAL',
-  brandName: 'Clinical OS',
+  brandName: 'Clinical AUREN',
   brandAbbr: 'MED',
   navigation: [
     {
-      title: 'Clinical Knowledge',
+      title: 'Clinical Workspace',
       links: [
-        { label: 'Hospital Dashboard', icon: ActivitySquare, href: '/dashboard' },
-        { label: 'Medical Search', icon: Search, href: '/search' },
-        { label: 'AI Assistant', icon: Stethoscope, href: '/chat' },
-        { label: 'Memory Console', icon: BrainCircuit, href: '/memory' },
-        { label: 'Protocols & SOPs', icon: FileText, href: '/documents' },
+        { label: 'Dashboard', icon: ActivitySquare, href: '/dashboard' },
+        { label: 'Clinical AI Assistant', icon: Stethoscope, href: '/chat' },
+        { label: 'Medical Knowledge', icon: FileText, href: '/documents' },
       ],
     },
     {
-      title: 'Hospital Admin',
+      title: 'Organization',
       links: [
-        { label: 'Staff', icon: Users, href: '/users' },
-        { label: 'Wards / Depts', icon: Building2, href: '/departments' },
-        { label: 'Compliance Logs', icon: ShieldAlert, href: '/audit-logs' },
-        { label: 'System Jobs', icon: Activity, href: '/jobs' },
+        { label: 'Clinical Team', icon: Users, href: '/users' },
+        { label: 'Department Access', icon: Building2, href: '/departments' },
+        { label: 'Integrations & Settings', icon: Briefcase, href: '/settings' },
       ],
     }
   ]
@@ -92,26 +86,23 @@ export const HospitalTemplate: TemplateConfig = {
 
 export const LegalTemplate: TemplateConfig = {
   industry: 'LEGAL',
-  brandName: 'Legal OS',
+  brandName: 'Legal AUREN',
   brandAbbr: 'LAW',
   navigation: [
     {
-      title: 'Firm Knowledge',
+      title: 'Firm Workspace',
       links: [
-        { label: 'Firm Dashboard', icon: Scale, href: '/dashboard' },
-        { label: 'Case Search', icon: Search, href: '/search' },
-        { label: 'Legal Assistant', icon: Gavel, href: '/chat' },
-        { label: 'Memory Console', icon: BrainCircuit, href: '/memory' },
-        { label: 'Client Files', icon: FileText, href: '/documents' },
+        { label: 'Dashboard', icon: Scale, href: '/dashboard' },
+        { label: 'Legal AI Assistant', icon: Gavel, href: '/chat' },
+        { label: 'Case Knowledge', icon: FileText, href: '/documents' },
       ],
     },
     {
-      title: 'Firm Admin',
+      title: 'Organization',
       links: [
-        { label: 'Partners & Staff', icon: Users, href: '/users' },
+        { label: 'Legal Team', icon: Users, href: '/users' },
         { label: 'Practice Areas', icon: Building2, href: '/departments' },
-        { label: 'Compliance Logs', icon: ShieldAlert, href: '/audit-logs' },
-        { label: 'System Jobs', icon: Activity, href: '/jobs' },
+        { label: 'Integrations & Settings', icon: Briefcase, href: '/settings' },
       ],
     }
   ]
@@ -119,26 +110,23 @@ export const LegalTemplate: TemplateConfig = {
 
 export const VCTemplate: TemplateConfig = {
   industry: 'VENTURE_CAPITAL',
-  brandName: 'Deal OS',
+  brandName: 'Deal AUREN',
   brandAbbr: 'VC',
   navigation: [
     {
-      title: 'Deal Flow',
+      title: 'Fund Workspace',
       links: [
-        { label: 'Deal Dashboard', icon: PieChart, href: '/dashboard' },
-        { label: 'Deal Search', icon: Search, href: '/search' },
-        { label: 'Diligence Assistant', icon: Briefcase, href: '/chat' },
-        { label: 'Memory Console', icon: BrainCircuit, href: '/memory' },
-        { label: 'Pitch Decks', icon: FileText, href: '/documents' },
+        { label: 'Dashboard', icon: PieChart, href: '/dashboard' },
+        { label: 'Diligence AI Assistant', icon: Briefcase, href: '/chat' },
+        { label: 'Fund Knowledge', icon: FileText, href: '/documents' },
       ],
     },
     {
-      title: 'Fund Admin',
+      title: 'Organization',
       links: [
-        { label: 'Team', icon: Users, href: '/users' },
-        { label: 'Funds & Entities', icon: Building2, href: '/departments' },
-        { label: 'Audit Logs', icon: ShieldAlert, href: '/audit-logs' },
-        { label: 'System Jobs', icon: Activity, href: '/jobs' },
+        { label: 'Investment Team', icon: Users, href: '/users' },
+        { label: 'Access Control', icon: Building2, href: '/departments' },
+        { label: 'Integrations & Settings', icon: Briefcase, href: '/settings' },
       ],
     }
   ]
@@ -153,7 +141,7 @@ export const TemplateRegistry: Record<string, TemplateConfig> = {
 
 export function getTemplateConfig(industry?: string): TemplateConfig {
   if (!industry || !TemplateRegistry[industry]) {
-    return CorporateTemplate; // Fallback
+    return CorporateTemplate;
   }
   return TemplateRegistry[industry];
 }
