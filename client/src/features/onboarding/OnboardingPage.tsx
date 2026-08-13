@@ -133,9 +133,12 @@ export const OnboardingPage: React.FC = () => {
 
   useEffect(() => {
     fetch('/api/v1/onboarding/templates')
-      .then(res => res.json())
+      .then(async res => {
+        const text = await res.text();
+        return text ? JSON.parse(text) : null;
+      })
       .then(data => {
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
           setTemplates(data.data);
         }
       })
@@ -177,7 +180,13 @@ export const OnboardingPage: React.FC = () => {
         }),
       });
 
-      const json = await response.json();
+      const resText = await response.text();
+      let json: any = {};
+      try {
+        json = resText ? JSON.parse(resText) : {};
+      } catch {
+        json = {};
+      }
 
       if (!response.ok || !json.success) {
         throw new Error(json.error || 'Failed to complete workspace onboarding.');

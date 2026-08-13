@@ -22,24 +22,32 @@ export function useApi() {
       headers,
     });
 
+    let errorData: any = null;
+    const text = await response.text();
+    if (text && text.trim()) {
+      try {
+        errorData = JSON.parse(text);
+      } catch {
+        errorData = null;
+      }
+    }
+
     if (response.status === 401) {
       // If unauthorized, clear auth state so UI redirects to login
       useAuthStore.getState().signOut();
-      const errorData = await response.json().catch(() => null);
       throw new Error(errorData?.error || 'Unauthorized session');
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
       throw new Error(errorData?.error || `API request failed with status ${response.status}`);
     }
 
-    // 204 No Content won't have JSON body
-    if (response.status === 204) {
+    // 204 No Content or empty body
+    if (response.status === 204 || !errorData) {
       return null;
     }
 
-    return response.json();
+    return errorData;
   }, []);
 
   return {
