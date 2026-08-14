@@ -18,13 +18,15 @@ export const MessageList: React.FC = () => {
     <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 w-full scroll-smooth">
       <div className="max-w-4xl mx-auto flex flex-col w-full h-full">
         {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-md mx-auto fade-in">
-            <div className="w-16 h-16 bg-ai/10 text-ai rounded-2xl flex items-center justify-center mb-6 shadow-sm">
-              <Sparkles size={32} />
+          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto opacity-0 animate-spring-up">
+            <div className="w-14 h-14 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-2xl flex items-center justify-center mb-5 shadow-lg backdrop-blur-xl">
+              <Sparkles size={28} />
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">How can I help you today?</h2>
-            <p className="text-muted-foreground text-sm">
-              I am AUREN, your enterprise knowledge assistant. I can search through organizational documents and provide grounded answers with citations.
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-100 mb-3">
+              Ask your organization's knowledge.
+            </h1>
+            <p className="text-slate-400 text-sm max-w-md">
+              Securely query policies, employee resources, and internal documentation with zero-trust protection.
             </p>
           </div>
         ) : (

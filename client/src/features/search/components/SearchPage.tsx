@@ -38,25 +38,27 @@ export const SearchPage: React.FC = () => {
       </div>
 
       <form onSubmit={handleSearch} className="mb-8">
-        <div className="relative max-w-2xl">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <SearchIcon className="h-5 w-5 text-muted-foreground" />
+        <div className="relative max-w-2xl liquid-border">
+          <div className="liquid-glass-input rounded-2xl p-1.5 flex items-center gap-2">
+            <div className="pl-3 text-slate-400">
+              <SearchIcon className="h-5 w-5 text-blue-400" />
+            </div>
+            <input
+              id="semantic-search-input"
+              type="text"
+              className="flex-1 bg-transparent border-none text-sm text-slate-100 placeholder:text-slate-400/70 py-2.5 outline-none"
+              placeholder="Ask a question or search for concepts..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !inputValue.trim()}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-500 disabled:opacity-40 disabled:hover:bg-blue-600 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.02] active:scale-95 shadow-md shadow-blue-600/30"
+            >
+              Search
+            </button>
           </div>
-          <input
-            id="semantic-search-input"
-            type="text"
-            className="block w-full pl-10 pr-3 py-3 border border-border rounded-lg text-sm bg-card focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm outline-none"
-            placeholder="Ask a question or search for concepts..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !inputValue.trim()}
-            className="absolute inset-y-1.5 right-1.5 px-4 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Search
-          </button>
         </div>
       </form>
 
