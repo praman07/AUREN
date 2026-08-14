@@ -49,21 +49,21 @@ export const ChatInput: React.FC = () => {
         <button
           type="button"
           onClick={() => setSuggestion('What is our leave policy?')}
-          className="px-4 py-2 rounded-full text-xs text-slate-700 font-medium transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.03] active:scale-95 liquid-glass-chip-light hover:bg-slate-100 hover:text-slate-900"
+          className="px-4 py-2 rounded-full text-xs text-slate-700 font-medium transition-colors duration-200 liquid-glass-chip-light hover:bg-slate-100 hover:text-slate-900"
         >
           What is our leave policy?
         </button>
         <button
           type="button"
           onClick={() => setSuggestion('How do I request equipment?')}
-          className="px-4 py-2 rounded-full text-xs text-slate-700 font-medium transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.03] active:scale-95 liquid-glass-chip-light hover:bg-slate-100 hover:text-slate-900"
+          className="px-4 py-2 rounded-full text-xs text-slate-700 font-medium transition-colors duration-200 liquid-glass-chip-light hover:bg-slate-100 hover:text-slate-900"
         >
           How do I request equipment?
         </button>
         <button
           type="button"
           onClick={() => setSuggestion('What are the latest security requirements?')}
-          className="px-4 py-2 rounded-full text-xs text-slate-700 font-medium transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.03] active:scale-95 liquid-glass-chip-light hover:bg-slate-100 hover:text-slate-900"
+          className="px-4 py-2 rounded-full text-xs text-slate-700 font-medium transition-colors duration-200 liquid-glass-chip-light hover:bg-slate-100 hover:text-slate-900"
         >
           What are the latest security requirements?
         </button>
@@ -86,7 +86,7 @@ export const ChatInput: React.FC = () => {
           <button
             onClick={handleSubmit}
             disabled={!input.trim() || isStreaming}
-            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:hover:bg-blue-600 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.08] active:scale-95 shadow-md shadow-blue-600/25 mb-1"
+            className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:hover:bg-blue-600 transition-colors duration-200 shadow-md shadow-blue-600/25 mb-1"
           >
             {isStreaming ? (
               <Sparkles size={18} className="animate-pulse text-white" />

@@ -142,34 +142,32 @@
 }
 
 @keyframes springUp {
-  0% { opacity: 0; transform: translateY(20px) scale(0.98); }
-  50% { transform: translateY(-2px) scale(1.01); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 .animate-spring-up {
-  animation: springUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: springUp 0.3s ease-out forwards;
 }
 
-.stagger-1 { animation-delay: 100ms; }
-.stagger-2 { animation-delay: 200ms; }
-.stagger-3 { animation-delay: 300ms; }
+.stagger-1 { animation-delay: 50ms; }
+.stagger-2 { animation-delay: 100ms; }
+.stagger-3 { animation-delay: 150ms; }
 
-/* Elastic Floating Capsule Navbar for White BG Chat */
+/* Floating Capsule Navbar for White BG Chat */
 .elastic-capsule-nav {
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 10px 30px rgba(0, 0, 0, 0.08);
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 10px 25px rgba(0, 0, 0, 0.06);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .elastic-capsule-nav:hover {
-  transform: translateX(-50%) scaleX(1.06) scaleY(1.04);
-  background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 1), 0 20px 45px rgba(37, 99, 235, 0.15);
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 1), 0 12px 30px rgba(0, 0, 0, 0.08);
 }
 
 /* Light Mode Liquid Glass Panel */
@@ -193,14 +191,13 @@
   border-right: 1px solid rgba(226, 232, 240, 0.7);
   border-bottom: 1px solid rgba(203, 213, 225, 0.7);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 12px 36px rgba(0, 0, 0, 0.07);
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .liquid-glass-input-light:focus-within {
   background: rgba(255, 255, 255, 0.98);
   border-color: rgba(59, 130, 246, 0.5);
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 1), 0 20px 45px rgba(37, 99, 235, 0.12), 0 0 0 3px rgba(59, 130, 246, 0.2);
-  transform: scale(1.01);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 1), 0 12px 30px rgba(37, 99, 235, 0.08), 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .liquid-glass-chip-light {
@@ -209,7 +206,9 @@
   background: rgba(241, 245, 249, 0.8);
   border: 1px solid rgba(226, 232, 240, 0.9);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 4px 12px rgba(0, 0, 0, 0.03);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
+
 
 
 
