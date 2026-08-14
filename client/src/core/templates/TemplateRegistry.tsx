@@ -4,15 +4,10 @@ import {
   Building2, 
   Users, 
   BarChart3, 
-  ShieldAlert, 
-  Activity,
-  Search,
   Stethoscope,
   ActivitySquare,
   Scale,
   Briefcase,
-  BrainCircuit,
-  Database,
   Gavel,
   PieChart
 } from 'lucide-react';

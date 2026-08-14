@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AuthSplitLayout } from './layout/AuthSplitLayout';
 import { Building2, ShieldCheck, UserPlus, ArrowRight } from 'lucide-react';
 

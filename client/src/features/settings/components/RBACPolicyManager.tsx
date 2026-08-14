@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Users, Lock, ChevronDown, Check } from 'lucide-react';
+import { Shield, Users, Lock, Check } from 'lucide-react';
 
 interface PolicyRule {
   id: string;
@@ -27,7 +27,7 @@ const initialPolicies: PolicyRule[] = [
 ];
 
 export const RBACPolicyManager: React.FC = () => {
-  const [policies, setPolicies] = useState<PolicyRule[]>(initialPolicies);
+  const [policies] = useState<PolicyRule[]>(initialPolicies);
 
   return (
     <div className="space-y-6">

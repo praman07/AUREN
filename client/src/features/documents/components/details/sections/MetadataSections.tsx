@@ -1,8 +1,9 @@
 import React from 'react';
 import type { Document } from '../../../api/documentQueries';
+import { useUpdateDocumentPermissions } from '../../../api/documentQueries';
 import { DetailRow, SectionHeader } from '../ui/DetailRow';
 import { Info, Shield, BrainCircuit } from 'lucide-react';
-import { ClassificationBadge, AIStatusBadge } from '../../ui/DocumentStatusBadges';
+import { AIStatusBadge } from '../../ui/DocumentStatusBadges';
 
 export const OverviewSection: React.FC<{ doc: Document }> = ({ doc }) => {
   const ext = doc.title.split('.').pop()?.toUpperCase() || 'FILE';
