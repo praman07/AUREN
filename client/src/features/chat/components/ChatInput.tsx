@@ -43,7 +43,7 @@ export const ChatInput: React.FC = () => {
   };
 
   return (
-    <div className="p-4 flex-shrink-0 relative z-20 bg-white">
+    <div className="p-4 pb-24 flex-shrink-0 relative z-20 bg-white">
       {/* Contextual Suggestion Chips (Light Glass) */}
       <div className="flex flex-wrap gap-2 justify-center mb-4 max-w-3xl mx-auto opacity-0 animate-spring-up stagger-1">
         <button

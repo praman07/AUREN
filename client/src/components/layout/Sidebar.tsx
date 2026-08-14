@@ -4,12 +4,39 @@ import { useUIStore } from '../../store/useUIStore';
 import { NavItem } from './NavItem';
 import { useAuthStore } from '../../core/auth/store/useAuthStore';
 import { getTemplateConfig } from '../../core/templates/TemplateRegistry';
+import { useLocation } from 'react-router-dom';
 
 export const Sidebar: React.FC = () => {
   const { isSidebarOpen } = useUIStore();
   const user = useAuthStore((state) => state.user);
   const templateConfig = getTemplateConfig(user?.industry);
+  const location = useLocation();
+  const isChatRoute = location.pathname === '/chat';
 
+  // Flatten all navigation links into a single array for capsule layout
+  const allNavLinks = templateConfig.navigation.flatMap((sec) => sec.links);
+
+  // When on /chat route, render as a floating center-bottom elastic capsule
+  if (isChatRoute) {
+    return (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+        <nav className="elastic-capsule-nav h-14 px-4 rounded-full flex items-center gap-1 shadow-2xl border border-slate-200/90 bg-white/80 backdrop-blur-xl">
+          {allNavLinks.map((link, idx) => (
+            <NavItem 
+              key={idx} 
+              label={link.label} 
+              icon={link.icon} 
+              href={link.href} 
+            />
+          ))}
+          <div className="h-6 w-[1px] bg-slate-200 mx-1" />
+          <NavItem label="Settings" icon={Settings} href="/settings" />
+        </nav>
+      </div>
+    );
+  }
+
+  // Standard left sidebar for other enterprise pages
   return (
     <aside 
       className={`
@@ -57,3 +84,4 @@ export const Sidebar: React.FC = () => {
     </aside>
   );
 };
+
