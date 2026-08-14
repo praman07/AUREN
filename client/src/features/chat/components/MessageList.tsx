@@ -19,13 +19,13 @@ export const MessageList: React.FC = () => {
       <div className="max-w-4xl mx-auto flex flex-col w-full h-full">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto opacity-0 animate-spring-up">
-            <div className="w-14 h-14 bg-blue-600/20 border border-blue-500/30 text-blue-400 rounded-2xl flex items-center justify-center mb-5 shadow-lg backdrop-blur-xl">
+            <div className="w-14 h-14 bg-blue-600/10 border border-blue-500/20 text-blue-600 rounded-2xl flex items-center justify-center mb-5 shadow-sm backdrop-blur-xl">
               <Sparkles size={28} />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-100 mb-3">
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-3 font-sans">
               Ask your organization's knowledge.
             </h1>
-            <p className="text-slate-400 text-sm max-w-md">
+            <p className="text-slate-500 text-sm max-w-md font-sans">
               Securely query policies, employee resources, and internal documentation with zero-trust protection.
             </p>
           </div>

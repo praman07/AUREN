@@ -155,4 +155,61 @@
 .stagger-2 { animation-delay: 200ms; }
 .stagger-3 { animation-delay: 300ms; }
 
+/* Elastic Floating Capsule Navbar for White BG Chat */
+.elastic-capsule-nav {
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 10px 30px rgba(0, 0, 0, 0.08);
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.elastic-capsule-nav:hover {
+  transform: translateX(-50%) scaleX(1.06) scaleY(1.04);
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 1), 0 20px 45px rgba(37, 99, 235, 0.15);
+}
+
+/* Light Mode Liquid Glass Panel */
+.liquid-glass-panel-light {
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  background: rgba(255, 255, 255, 0.85);
+  border-top: 1px solid rgba(255, 255, 255, 0.9);
+  border-left: 1px solid rgba(255, 255, 255, 0.7);
+  border-right: 1px solid rgba(226, 232, 240, 0.6);
+  border-bottom: 1px solid rgba(203, 213, 225, 0.6);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 12px 32px rgba(0, 0, 0, 0.06);
+}
+
+.liquid-glass-input-light {
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  background: rgba(255, 255, 255, 0.85);
+  border-top: 1px solid rgba(255, 255, 255, 0.9);
+  border-left: 1px solid rgba(255, 255, 255, 0.7);
+  border-right: 1px solid rgba(226, 232, 240, 0.7);
+  border-bottom: 1px solid rgba(203, 213, 225, 0.7);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 12px 36px rgba(0, 0, 0, 0.07);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.liquid-glass-input-light:focus-within {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 1), 0 20px 45px rgba(37, 99, 235, 0.12), 0 0 0 3px rgba(59, 130, 246, 0.2);
+  transform: scale(1.01);
+}
+
+.liquid-glass-chip-light {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(241, 245, 249, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+
 
