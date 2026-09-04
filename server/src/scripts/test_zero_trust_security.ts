@@ -65,7 +65,7 @@ async function runSecurityTest() {
     const contextBuilder = new ContextBuilder();
     const promptBuilder = new PromptBuilder();
     const retrievalEngine = new RetrievalEngine(vectorSearch, keywordSearch, ranker, contextBuilder, promptBuilder);
-    const ragService = new RAGService(retrievalEngine, aiGateway);
+    const ragService = new RAGService();
     const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' });
 
     console.log('--- PHASE 1: DB SEEDING ---');

@@ -139,7 +139,8 @@ export class ConnectorService {
 
         // Write the raw text to the local storage provider and create a DocumentVersion.
         const versionId = crypto.randomUUID();
-        const s3Key = `connectors/${account.provider.toLowerCase()}/${account.id}/${resource.externalId}`;
+        const safeExternalId = resource.externalId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const s3Key = `connectors/${account.provider.toLowerCase()}/${account.id}/${safeExternalId}`;
 
         await this.storageProvider.upload(Buffer.from(resource.content, 'utf8'), s3Key + '.txt');
 
@@ -160,6 +161,38 @@ export class ConnectorService {
           versionId,
           organizationId: account.organizationId,
         });
+      }
+
+      // Deletion Purging: Identify documents previously ingested under this connectedAccount that are no longer in fetched resources
+      const fetchedExternalIds = new Set(resources.map(r => r.externalId));
+      const existingDocs = await prisma.document.findMany({
+        where: {
+          connectedAccountId: account.id,
+          organizationId: account.organizationId,
+          deletedAt: null
+        },
+        select: { id: true, externalId: true }
+      });
+
+      for (const existingDoc of existingDocs) {
+        if (existingDoc.externalId && !fetchedExternalIds.has(existingDoc.externalId)) {
+          console.log(`[ConnectorService] Soft-deleting document ${existingDoc.id} (${existingDoc.externalId}) removed from source`);
+          await prisma.document.update({
+            where: { id: existingDoc.id },
+            data: { deletedAt: new Date() }
+          });
+
+          // Purge Qdrant points if QdrantVectorStoreProvider is available
+          try {
+            const { QdrantVectorStoreProvider } = await import('../../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider');
+            const qdrant = new QdrantVectorStoreProvider();
+            // Delete points associated with this document ID in the org collection
+            const collectionName = `org_${account.organizationId}_docs`;
+            await qdrant.deleteDocument(collectionName, existingDoc.id);
+          } catch (qErr: any) {
+            console.warn(`[ConnectorService] Vector purge warning for doc ${existingDoc.id}:`, qErr.message);
+          }
+        }
       }
 
       // Update sync diagnostics (success)
@@ -208,6 +241,7 @@ export class ConnectorService {
       case 'GITHUB': return 'GITHUB';
       case 'NOTION': return 'NOTION';
       case 'GMAIL': return 'GMAIL';
+      case 'GOOGLE_DRIVE': return 'GOOGLE_DRIVE' as SourceType;
       default: return 'UPLOAD';
     }
   }

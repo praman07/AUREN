@@ -1,0 +1,458 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Lumina AI - Liquid Glass Interface</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&display=swap');
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#141d21",
+                        "surface-variant": "#e2e2e2",
+                        "on-primary": "#ffffff",
+                        "background": "#f9f9f9",
+                        "on-secondary-fixed-variant": "#004493",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed-dim": "#bfc8ce",
+                        "secondary-container": "#0070ea",
+                        "surface": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-container-lowest": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed-variant": "#004f58",
+                        "on-surface-variant": "#3b494c",
+                        "surface-dim": "#dadada",
+                        "secondary-fixed": "#d8e2ff",
+                        "inverse-surface": "#2f3131",
+                        "secondary": "#0059bb",
+                        "primary-fixed": "#9cf0ff",
+                        "on-primary-fixed": "#001f24",
+                        "surface-container-highest": "#e2e2e2",
+                        "tertiary-fixed": "#dbe4ea",
+                        "on-surface": "#1a1c1c",
+                        "surface-tint": "#006875",
+                        "primary": "#006875",
+                        "primary-fixed-dim": "#00daf3",
+                        "secondary-fixed-dim": "#adc7ff",
+                        "on-tertiary-fixed-variant": "#3f484d",
+                        "outline": "#6b7a7d",
+                        "surface-container": "#eeeeee",
+                        "surface-container-low": "#f3f3f4",
+                        "tertiary": "#576065",
+                        "on-background": "#1a1c1c",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#fefcff",
+                        "on-error-container": "#93000a",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#001a41",
+                        "on-tertiary-container": "#515a5f",
+                        "tertiary-container": "#c9d2d8",
+                        "surface-bright": "#f9f9f9",
+                        "on-primary-container": "#00626e",
+                        "outline-variant": "#bac9cc",
+                        "primary-container": "#00e5ff",
+                        "inverse-primary": "#00daf3",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-secondary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "element-gap": "16px",
+                        "glass-margin": "24px",
+                        "container-padding": "32px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Geist"],
+                        "headline-lg-mobile": ["Geist"],
+                        "headline-xl": ["Geist"],
+                        "body-md": ["Geist"],
+                        "body-sm": ["Geist"],
+                        "headline-lg": ["Geist"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-xl": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.04em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #f9f9f9; /* Light mode default */
+            color: #1a1c1c; /* on-surface */
+            overflow: hidden; /* Keep fluid layout contained */
+        }
+        
+        /* Custom scrollbar for liquid filament */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 229, 255, 0.5); /* primary-container with opacity */
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 229, 255, 0.8);
+        }
+
+        /* Utility classes for liquid glass effects */
+        .glass-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(0px); /* Strictly NO blur as requested */
+            -webkit-backdrop-filter: blur(0px);
+        }
+        
+        .boundary-light-default {
+            border-top: 1px solid rgba(255, 255, 255, 0.4);
+            border-left: 1px solid rgba(255, 255, 255, 0.4);
+            border-bottom: 1px solid rgba(0, 229, 255, 0.3); /* Electric Cyan */
+            border-right: 1px solid rgba(0, 229, 255, 0.3);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .boundary-light-ai {
+            border: 1px solid rgba(0, 229, 255, 0.8); /* Stronger cyan for AI */
+            box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.1), 0 0 10px rgba(0, 229, 255, 0.2);
+            background: linear-gradient(135deg, rgba(0, 229, 255, 0.05) 0%, transparent 100%);
+        }
+        
+        .boundary-light-user {
+            border-top: 1px solid rgba(255, 255, 255, 0.6);
+            border-left: 1px solid rgba(255, 255, 255, 0.6);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .glow-trace {
+            box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Animations */
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 4px rgba(0, 229, 255, 0.4); }
+            50% { box-shadow: 0 0 12px rgba(0, 229, 255, 0.8); }
+            100% { box-shadow: 0 0 4px rgba(0, 229, 255, 0.4); }
+        }
+        .bioluminescent-pulse {
+            animation: pulse-glow 2s infinite;
+        }
+
+        .float-animation {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&amp;display=swap" data-snapdom="injected-import"></head>
+<body class="relative min-h-screen font-body-md text-on-surface antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- Background Shader -->
+<div class="fixed inset-0 z-0">
+<!-- STITCH_SHADER_START:ANIMATION_1 class="absolute inset-0 w-full h-full opacity-60 mix-blend-multiply" -->
+<div class="absolute inset-0 w-full h-full opacity-60 mix-blend-multiply" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_1" style="display:block;width:100%;height:100%" width="1434" height="1024"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_1');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+varying vec2 v_texCoord;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+
+// High-quality noise function
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
+    for (int i = 0; i < 5; i++) {
+        v += a * noise(p);
+        p = m * p + u_time * 0.1;
+        a *= 0.5;
+    }
+    return v;
+}
+
+void main() {
+    vec2 uv = v_texCoord;
+    vec2 p = uv * 3.0;
+    
+    // Create sky-like movement
+    float n = fbm(p + u_time * 0.05);
+    
+    // Deep blue base
+    vec3 color1 = vec3(0.05, 0.2, 0.6); // Deep Sky Blue
+    vec3 color2 = vec3(0.8, 0.9, 1.0);  // Bright Sky White
+    
+    // Mix based on noise
+    vec3 finalColor = mix(color1, color2, n * 0.8);
+    
+    // Add some subtle mouse interaction
+    float dist = length(uv - u_mouse / u_resolution);
+    finalColor += 0.1 * vec3(0.0, 0.5, 1.0) * (1.0 - smoothstep(0.0, 0.5, dist));
+
+    gl_FragColor = vec4(finalColor, 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_1 -->
+<!-- Overlay to ensure contrast on light mode -->
+<div class="absolute inset-0 bg-white/40 mix-blend-overlay"></div>
+</div>
+<!-- Main Application Shell -->
+<div class="relative z-10 flex h-screen w-full overflow-hidden"><aside class="hidden md:flex flex-col w-72 h-full glass-container boundary-light-default rounded-3xl m-4 relative overflow-hidden group" style="border-top: 3px solid rgb(255, 255, 255); border-left: 3px solid rgba(255, 255, 255, 0.8); box-shadow: rgba(255, 255, 255, 0.5) 0px 2px 8px inset, rgba(0, 229, 255, 0.2) 0px -2px 10px inset, rgba(0, 0, 0, 0.15) 0px 8px 32px;">
+    <!-- Catch light effect -->
+    <div class="absolute top-0 left-0 w-48 h-48 bg-white/40 rounded-full blur-xl -translate-x-1/2 -translate-y-1/2 group-hover:bg-primary-container/40 transition-colors duration-500 z-0 scale-110"></div><div class="absolute top-1 left-1 w-12 h-12 bg-white/80 rounded-full blur-md pointer-events-none z-10"></div>
+    
+    <div class="p-6 flex flex-col h-full relative z-10">
+        <div class="flex items-center justify-between mb-6">
+            <span class="text-label-caps font-label-caps text-primary">HISTORY</span>
+            <button class="text-on-surface-variant hover:text-primary transition-colors">
+                <span class="material-symbols-outlined">add_box</span>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto flex flex-col gap-2 pr-2">
+            <button class="flex items-center gap-3 p-3 rounded-xl glass-container boundary-light-default hover:bg-primary-container/10 transition-all text-left group/item relative overflow-hidden shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)]" style="border-top: 2.5px solid rgba(255, 255, 255, 0.95); border-left: 1.5px solid rgba(255, 255, 255, 0.7); box-shadow: rgba(255, 255, 255, 0.5) 0px 1px 4px inset, rgba(0, 229, 255, 0.1) 0px -1px 2px inset;">
+                <div class="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                <span class="material-symbols-outlined text-primary relative z-10">water_drop</span>
+                <span class="text-body-sm font-body-sm truncate relative z-10">Fluid Dynamics Analysis</span>
+            </button>
+            
+            <button class="flex items-center gap-3 p-3 rounded-xl glass-container boundary-light-default hover:bg-primary-container/10 transition-all text-left group/item relative overflow-hidden shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)]" style="border-top: 2.5px solid rgba(255, 255, 255, 0.95); border-left: 1.5px solid rgba(255, 255, 255, 0.7); box-shadow: rgba(255, 255, 255, 0.5) 0px 1px 4px inset, rgba(0, 229, 255, 0.1) 0px -1px 2px inset;">
+                <div class="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                <span class="material-symbols-outlined text-on-surface-variant relative z-10">air</span>
+                <span class="text-body-sm font-body-sm truncate text-on-surface-variant relative z-10">Turbulence Simulation</span>
+            </button>
+
+            <button class="flex items-center gap-3 p-3 rounded-xl glass-container boundary-light-default hover:bg-primary-container/10 transition-all text-left group/item relative overflow-hidden shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)]" style="border-top: 2.5px solid rgba(255, 255, 255, 0.95); border-left: 1.5px solid rgba(255, 255, 255, 0.7); box-shadow: rgba(255, 255, 255, 0.5) 0px 1px 4px inset, rgba(0, 229, 255, 0.1) 0px -1px 2px inset;">
+                <div class="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                <span class="material-symbols-outlined text-on-surface-variant relative z-10">science</span>
+                <span class="text-body-sm font-body-sm truncate text-on-surface-variant relative z-10">Material Science Study</span>
+            </button>
+        </div>
+
+        <div class="mt-auto pt-4 border-t border-white/10">
+            <button class="flex items-center gap-3 p-3 w-full rounded-xl hover:bg-white/10 transition-all">
+                <span class="material-symbols-outlined text-on-surface-variant">delete</span>
+                <span class="text-body-sm font-body-sm text-on-surface-variant">Clear History</span>
+            </button>
+        </div>
+    </div>
+</aside>
+<!-- Side Navigation (Web) -->
+
+<!-- Top App Bar (Mobile mainly, but visible for branding on wider screens if desired, keeping minimal) -->
+<header class="md:hidden fixed top-0 w-full flex justify-between items-center px-glass-margin py-4 z-50 glass-container boundary-light-default rounded-b-xl border-t-0">
+<div class="flex items-center gap-2">
+<img alt="Lumina Core Logo" class="w-8 h-8 object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4Sl4J0nYwnpsHcW-6_n2wXmcY1d2Bv4n791_PWxzBhBtUMisH2b9sGKMd66yzgckJCpZbBE8nG14pU6pk_cNwu7umwtpYFPRGZ-48nsPmhAQyRXTRieFSlxd5eixLtCuBiSD589FU4jynr8FW3q3bm9VKBuAKBnoWxPe0u9BYL3lUycgH8TQ3RNYn201uXrvTeyVZhlTqbbUxbmCgBelvpzlpOvjfy4pd2zjupP9oVuRJC1-D3E_q">
+<span class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary tracking-tighter">Lumina AI</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary-container transition-colors scale-95 hover:scale-105 active:scale-90">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary-container transition-colors scale-95 hover:scale-105 active:scale-90">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area: Chat Stream -->
+<main class="flex-1 flex flex-col items-center w-full h-full pt-20 px-4 md:px-0 relative md:mt-4 pb-48">
+<!-- Center Canvas constraints -->
+<div class="w-full max-w-[720px] h-full flex flex-col relative">
+<!-- Chat Stream Container -->
+<div class="flex-1 overflow-y-auto scroll-smooth pb-10 pr-2 flex flex-col gap-6 relative pt-4" id="chat-stream">
+<!-- Date Separator -->
+<div class="absolute left-1/2 -translate-x-1/2 top-4 z-10"></div>
+<!-- AI Message (Refractive Card/Bubble) -->
+<div class="self-start max-w-[85%] float-animation" style="animation-delay: 0s;">
+<div class="glass-container boundary-light-ai rounded-3xl rounded-tl-sm p-5 text-body-md text-on-surface leading-relaxed relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300" style="border-width: 3px 1px 1px 2.5px; border-style: solid; border-color: rgba(255, 255, 255, 0.95) rgba(0, 112, 234, 0.4) rgba(0, 112, 234, 0.4) rgba(255, 255, 255, 0.8); box-shadow: rgba(255, 255, 255, 0.6) 0px 2px 4px inset, rgba(0, 112, 234, 0.15) 0px -2px 10px inset, rgba(0, 0, 0, 0.1) 0px 8px 32px; background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(0, 112, 234, 0.05) 100%);">
+<!-- Catch light effect -->
+<div class="absolute top-0 left-0 w-32 h-32 bg-white/60 rounded-full blur-xl -translate-x-1/2 -translate-y-1/2 group-hover:bg-secondary-container/40 transition-colors duration-500"></div>
+<p class="">Hello. I am Lumina. I've finished analyzing the fluid dynamics data you provided.</p>
+<div class="mt-4 flex gap-2">
+<button class="glass-container boundary-light-default rounded-full px-3 py-1 flex items-center gap-1 text-label-caps font-label-caps hover:bg-primary-container/10 transition-colors text-secondary">
+<span class="material-symbols-outlined text-[14px]">insights</span>
+                                    VIEW CHART
+                                </button>
+<button class="glass-container boundary-light-default rounded-full px-3 py-1 flex items-center gap-1 text-label-caps font-label-caps hover:bg-primary-container/10 transition-colors text-secondary">
+<span class="material-symbols-outlined text-[14px]">download</span>
+                                    DATA
+                                </button>
+</div>
+</div>
+<span class="text-label-caps font-label-caps text-on-surface-variant/50 ml-2 mt-1 block">10:42 AM</span>
+</div>
+<!-- User Message -->
+<div class="self-end max-w-[85%] float-animation" style="animation-delay: 0.5s;">
+<div class="glass-container boundary-light-user rounded-3xl rounded-tr-sm p-5 text-body-md text-on-surface leading-relaxed transition-transform duration-300 hover:scale-105" style="border-top: 3px solid rgba(255, 255, 255, 0.9); border-left: 3px solid rgba(255, 255, 255, 0.9); box-shadow: rgba(255, 255, 255, 0.5) 0px 2px 4px inset, rgba(0, 229, 255, 0.15) 0px -2px 10px inset, rgba(0, 0, 0, 0.15) 0px 8px 32px; background: rgba(255, 255, 255, 0.15); position: relative; overflow: hidden;"><div class="absolute top-0 left-0 w-24 h-24 bg-white/40 rounded-full blur-md -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"></div>
+<p class="">That looks great. Can we run a simulation on the secondary turbulence models with increased viscosity parameters?</p>
+</div>
+<span class="text-label-caps font-label-caps text-on-surface-variant/50 mr-2 mt-1 block text-right">10:45 AM</span>
+</div>
+<!-- AI Message: Thinking State -->
+<div class="self-start max-w-[85%] float-animation" style="animation-delay: 1s;">
+<div class="glass-container boundary-light-ai rounded-full p-4 flex items-center gap-3" style="border-top: 3px solid rgba(255, 255, 255, 0.95); border-left: 3px solid rgba(255, 255, 255, 0.95); box-shadow: rgba(255, 255, 255, 0.6) 0px 2px 8px inset, rgba(0, 229, 255, 0.3) 0px -2px 10px inset, rgba(0, 0, 0, 0.15) 0px 8px 32px; background: rgba(255, 255, 255, 0.1); position: relative; overflow: hidden;">
+<div class="absolute top-0 left-0 w-32 h-12 bg-white/40 rounded-full blur-md -translate-x-1/4 -translate-y-1/2 pointer-events-none z-0"></div>
+<div class="w-3 h-3 rounded-full bg-secondary-container bioluminescent-pulse" style="animation-delay: 0.2s;"></div>
+<div class="w-3 h-3 rounded-full bg-secondary-container bioluminescent-pulse" style="animation-delay: 0.4s;"></div>
+<span class="text-body-sm font-body-sm text-secondary ml-2">Synthesizing models...</span>
+</div>
+</div>
+</div>
+<!-- Liquid Input Bar -->
+<div class="fixed bottom-glass-margin left-1/2 -translate-x-1/2 w-full max-w-[720px] px-4 md:px-0 z-40">
+<div class="glass-container boundary-light-default rounded-full p-2 flex items-center gap-2 focus-within:glow-trace transition-all duration-300 group" style="border-top: 3px solid rgba(255, 255, 255, 0.95); border-left: 3px solid rgba(255, 255, 255, 0.95); box-shadow: rgba(255, 255, 255, 0.6) 0px 2px 8px inset, rgba(0, 0, 0, 0.1) 0px 12px 40px; background: rgba(255, 255, 255, 0.1); position: relative; overflow: hidden;"><div class="absolute top-0 left-0 w-32 h-12 bg-white/40 rounded-full blur-md -translate-x-1/4 -translate-y-1/2 pointer-events-none z-0"></div>
+<button aria-label="Attach file" class="p-2 rounded-full text-on-surface-variant hover:text-primary transition-colors hover:bg-white/10">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<input class="flex-1 bg-transparent border-none outline-none text-body-md font-body-md text-black placeholder:text-on-surface focus:ring-0 px-2" placeholder="Ask Lumina to analyze or simulate..." type="text" style="color: rgb(0, 0, 0); caret-color: rgb(0, 0, 0);">
+<button aria-label="Send message" class="bg-primary-container/20 text-primary-container p-3 rounded-full hover:bg-primary-container/40 hover:scale-105 transition-all duration-300 flex items-center justify-center boundary-light-default">
+<span class="material-symbols-outlined font-variation-settings: 'FILL' 1;" style="color: rgb(0, 0, 0);">send</span>
+</button>
+</div>
+<div class="text-center mt-2">
+
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Nav Bar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-glass-margin left-1/2 -translate-x-1/2 z-50 flex items-center gap-container-padding glass-container boundary-light-default rounded-full px-8 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.1)]">
+<a aria-label="Chat" class="flex flex-col items-center text-primary font-bold scale-110 active:scale-90 transition-all" href="#">
+<span class="material-symbols-outlined font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="text-label-caps font-label-caps mt-1 hidden">Chat</span>
+</a>
+<a aria-label="Analyze" class="flex flex-col items-center text-on-surface-variant opacity-60 hover:opacity-100 active:scale-90 transition-all" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="text-label-caps font-label-caps mt-1 hidden">Analyze</span>
+</a>
+<a aria-label="Explore" class="flex flex-col items-center text-on-surface-variant opacity-60 hover:opacity-100 active:scale-90 transition-all" href="#">
+<span class="material-symbols-outlined">explore</span>
+<span class="text-label-caps font-label-caps mt-1 hidden">Explore</span>
+</a>
+</nav>
+</div>
+<script>
+        // Simple script to auto-scroll chat to bottom on load for effect
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatStream = document.getElementById('chat-stream');
+            if(chatStream) {
+                chatStream.scrollTop = chatStream.scrollHeight;
+            }
+        });
+    </script>
+
+
+</body></html>

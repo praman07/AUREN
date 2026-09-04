@@ -15,7 +15,7 @@ import { ProcessingJobsPage } from './features/processing-jobs/components/Proces
 import { MemoryConsolePage } from './features/memory/components/MemoryConsolePage';
 import { SettingsPage } from './features/settings/components/SettingsPage';
 import { EnterpriseAuthProvider } from './core/auth/providers/EnterpriseAuthProvider';
-import { RequireAuth, PublicOnly } from './core/auth/guards/AuthGuards';
+import { RequireAuth, PublicOnly, RequireSuperAdmin } from './core/auth/guards/AuthGuards';
 import { LoginForm } from './features/authentication/components/LoginForm';
 import { SignUpForm } from './features/authentication/components/SignUpForm';
 import { OnboardingPage } from './features/onboarding/OnboardingPage';
@@ -37,16 +37,24 @@ function App() {
       <Route path="/" element={<RequireAuth><EnterpriseLayout /></RequireAuth>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="documents" element={<Navigate to="/documents/org" replace />} />
+        <Route path="documents/:scopeRoute" element={<DocumentsPage />} />
+        <Route path="docs" element={<Navigate to="/documents/org" replace />} />
+        <Route path="docs/:scopeRoute" element={<DocumentsPage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="chat" element={<ChatPage />} />
-        <Route path="memory" element={<MemoryConsolePage />} />
-        <Route path="organizations" element={<OrganizationsPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="departments" element={<DepartmentsSecurityPage />} />
-        <Route path="audit-logs" element={<AuditLogsPage />} />
-        <Route path="jobs" element={<ProcessingJobsPage />} />
-        <Route path="documents" element={<DocumentsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings/*" element={<SettingsPage />} />
+        <Route path="integrations" element={<SettingsPage />} />
+        <Route path="integrations/*" element={<SettingsPage />} />
+        
+        {/* Protected Super Admin Routes */}
+        <Route path="memory" element={<RequireSuperAdmin><MemoryConsolePage /></RequireSuperAdmin>} />
+        <Route path="organizations" element={<RequireSuperAdmin><OrganizationsPage /></RequireSuperAdmin>} />
+        <Route path="users" element={<RequireSuperAdmin><UsersPage /></RequireSuperAdmin>} />
+        <Route path="departments" element={<RequireSuperAdmin><DepartmentsSecurityPage /></RequireSuperAdmin>} />
+        <Route path="audit-logs" element={<RequireSuperAdmin><AuditLogsPage /></RequireSuperAdmin>} />
+        <Route path="jobs" element={<RequireSuperAdmin><ProcessingJobsPage /></RequireSuperAdmin>} />
         
         <Route path="admin/users" element={<Navigate to="/users" replace />} />
         <Route path="admin/departments" element={<Navigate to="/departments" replace />} />

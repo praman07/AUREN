@@ -23,6 +23,7 @@ import { ConnectorRegistry } from './application/connectors/ConnectorRegistry';
 import { GitHubConnector } from './infrastructure/connectors/GitHubConnector';
 import { GmailConnector } from './infrastructure/connectors/GmailConnector';
 import { NotionConnector } from './infrastructure/connectors/NotionConnector';
+import { GoogleDriveConnector } from './infrastructure/connectors/GoogleDriveConnector';
 import { ConnectorService } from './application/connectors/ConnectorService';
 
 // Repositories
@@ -58,5 +59,6 @@ export const workerManager = new WorkerManager(ocrService, chunkingService, embe
 ConnectorRegistry.getInstance().register(new GitHubConnector());
 ConnectorRegistry.getInstance().register(new GmailConnector());
 ConnectorRegistry.getInstance().register(new NotionConnector());
+ConnectorRegistry.getInstance().register(new GoogleDriveConnector());
 
 export const connectorService = new ConnectorService(orchestrator, storageProvider);

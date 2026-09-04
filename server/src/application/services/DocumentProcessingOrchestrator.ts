@@ -44,26 +44,26 @@ export class DocumentProcessingOrchestrator {
   }
 
   private async startPipeline(payload: PipelineEventPayload) {
-    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.QUEUED);
-    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.OCR_PENDING);
+    const s1 = await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.QUEUED);
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.OCR_PENDING, undefined, s1);
     await this.queueManager.ocrQueue.add('extract-text', payload);
   }
 
   private async onOcrCompleted(payload: PipelineEventPayload) {
-    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.OCR_COMPLETED);
-    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.CHUNKING_PENDING);
+    const s1 = await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.OCR_COMPLETED);
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.CHUNKING_PENDING, undefined, s1);
     await this.queueManager.chunkingQueue.add('create-chunks', payload);
   }
 
   private async onChunkingCompleted(payload: PipelineEventPayload) {
-    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.CHUNKING_COMPLETED);
-    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.EMBEDDING_PENDING);
+    const s1 = await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.CHUNKING_COMPLETED);
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.EMBEDDING_PENDING, undefined, s1);
     await this.queueManager.embeddingQueue.add('generate-embeddings', payload);
   }
 
   private async onEmbeddingCompleted(payload: PipelineEventPayload) {
-    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.EMBEDDING_COMPLETED);
-    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.INDEXING_PENDING);
+    const s1 = await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.EMBEDDING_COMPLETED);
+    await this.statusService.transitionState(payload.documentId, payload.organizationId, PipelineState.INDEXING_PENDING, undefined, s1);
     await this.queueManager.qdrantIndexingQueue.add('index-vectors', payload);
   }
 

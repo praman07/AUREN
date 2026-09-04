@@ -13,6 +13,7 @@ export class UploadController {
 
       const orgId = req.user!.organizationId;
       const userId = req.user!.id;
+      const scope = req.body?.scope || req.query?.scope;
       
       const result = await this.uploadService.processUpload(
         orgId,
@@ -20,7 +21,8 @@ export class UploadController {
         req.file.buffer,
         req.file.originalname,
         req.file.mimetype,
-        req.file.size
+        req.file.size,
+        scope
       );
 
       res.status(201).json({ success: true, data: result });

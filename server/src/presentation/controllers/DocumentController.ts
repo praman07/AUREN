@@ -60,6 +60,13 @@ export class DocumentController {
     } catch (error) { next(error); }
   };
 
+  public deleteAllDocuments = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await this.documentService.deleteAllDocuments(this.requester(req));
+      res.status(200).json({ success: true, message: 'All organization documents deleted' });
+    } catch (error) { next(error); }
+  };
+
   public restoreDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const doc = await this.documentService.restoreDocument(req.params.id as string, this.requester(req));

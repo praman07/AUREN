@@ -16,7 +16,7 @@ export class VectorSearchProvider {
     
     // 2. Search vector store
     const vectorStore = this.providerFactory.getVectorStoreProvider();
-    const collectionName = `org_${request.organizationId}_docs`;
+    const collectionName = `org_${request.organizationId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
     const results = await vectorStore.search(collectionName, queryVector, request.limit, filter);
     
     // Translate provider results to RetrievedChunk

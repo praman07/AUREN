@@ -46,3 +46,12 @@ export const ClassificationBadge: React.FC<{ classification: Classification }> =
 export const SharingBadge: React.FC<{ status: SharingStatus }> = ({ status }) => {
   return <Badge variant={status === 'Shared' ? 'neutral' : 'warning'}>{status}</Badge>;
 };
+
+export const ScopeBadge: React.FC<{ scope?: string; visibility?: string }> = ({ scope, visibility }) => {
+  const isPersonal = scope === 'PERSONAL' || visibility === 'PRIVATE';
+  if (isPersonal) {
+    return <Badge variant="warning">Personal</Badge>;
+  }
+  return <Badge variant="blue">Organization</Badge>;
+};
+

@@ -18,13 +18,15 @@ export class QdrantIndexingService {
           organizationId: true,
           departmentId: true,
           visibility: true,
+          scope: true,
           ownerId: true,
           allowedRoles: true,
           deniedRoles: true,
           allowedUsers: true,
           deniedUsers: true,
           allowedDepartments: true,
-          deniedDepartments: true
+          deniedDepartments: true,
+          title: true,       // needed for citation title in Qdrant payload
         }
       });
 
@@ -61,7 +63,7 @@ export class QdrantIndexingService {
       const vectorStoreProvider = this.providerFactory.getVectorStoreProvider();
       
       // 3. Ensure Collection Exists with correct dimension
-      const collectionName = `org_${document.organizationId}_docs`;
+      const collectionName = `org_${document.organizationId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
       
       // Abstract provider handles the "if exists with wrong dim -> throw" logic
       await vectorStoreProvider.ensureCollection(collectionName, dimension);
@@ -83,6 +85,7 @@ export class QdrantIndexingService {
             organizationId: document.organizationId,
             departmentId: document.departmentId,
             visibility: document.visibility,
+            scope: document.scope,
             ownerId: document.ownerId,
             documentId: chunk.documentId,
             documentVersionId: chunk.versionId,
@@ -97,6 +100,7 @@ export class QdrantIndexingService {
             deniedDepartments: document.deniedDepartments,
             
             // Context Metadata
+            documentName: document.title || null,   // human-readable document title
             pageNumbers: chunk.pageNumbers,
             sectionTitle: chunk.sectionTitle,
             chunkIndex: chunk.chunkIndex,

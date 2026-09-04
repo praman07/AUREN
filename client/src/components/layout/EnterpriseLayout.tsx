@@ -3,6 +3,8 @@ import { Search } from 'lucide-react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Button } from '../ui/button';
+import { UploadDialog } from '../../features/documents/components/upload/UploadDialog';
+import { DocumentDetailsDrawer } from '../../features/documents/components/details/DocumentDetailsDrawer';
 
 export const EnterpriseLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -34,7 +36,12 @@ export const EnterpriseLayout: React.FC = () => {
           <Outlet />
         </div>
       </main>
+
+      {/* Global Dialogs & Drawers */}
+      <UploadDialog />
+      <DocumentDetailsDrawer />
     </div>
   );
 };
+
 

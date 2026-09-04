@@ -7,8 +7,8 @@ const startServer = async () => {
   try {
     const app = createApp();
     
-    const server = app.listen(env.PORT, () => {
-      logger.info(`🚀 EKOS Backend is running on http://localhost:${env.PORT} in ${env.NODE_ENV} mode`);
+    const server = app.listen(env.PORT as number, '0.0.0.0', () => {
+      logger.info(`🚀 EKOS Backend is running on http://127.0.0.1:${env.PORT} in ${env.NODE_ENV} mode`);
     });
 
     const { workerManager } = require('./di');

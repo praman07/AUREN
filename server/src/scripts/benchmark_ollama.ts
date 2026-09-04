@@ -97,7 +97,7 @@ async function runBenchmark() {
     process.env.OLLAMA_MODEL = model.name;
 
     const aiGateway = new AIGateway(providerFactory);
-    const ragService = new RAGService(retrievalEngine, aiGateway);
+    const ragService = new RAGService();
 
     for (const scenario of scenarios) {
       console.log(`\nScenario: ${scenario.name}`);

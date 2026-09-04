@@ -5,6 +5,8 @@ import { LocalOCRProvider } from '../adapters/ocr/LocalOCRProvider';
 import { OllamaEmbeddingProvider } from '../adapters/embedding/OllamaEmbeddingProvider';
 import { QdrantVectorStoreProvider } from '../adapters/vector/QdrantVectorStoreProvider';
 import { OllamaChatProvider } from '../adapters/chat/OllamaChatProvider';
+import { LlamaCppChatProvider } from '../adapters/chat/LlamaCppChatProvider';
+import { IChatProvider } from '../interfaces/IChatProvider';
 
 export class ProviderFactory {
   private registry: ProviderRegistry;
@@ -19,11 +21,13 @@ export class ProviderFactory {
     const ollamaEmbedding = new OllamaEmbeddingProvider();
     const qdrantVector = new QdrantVectorStoreProvider();
     const ollamaChat = new OllamaChatProvider();
+    const llamacppChat = new LlamaCppChatProvider();
 
     this.registry.registerOCR('local', () => localOcr);
     this.registry.registerEmbedding('ollama', () => ollamaEmbedding);
     this.registry.registerVectorStore('qdrant', () => qdrantVector);
     this.registry.registerChat('ollama', () => ollamaChat);
+    this.registry.registerChat('llamacpp', () => llamacppChat);
   }
 
   getOCRProvider(name: string = process.env.OCR_PROVIDER || 'local') {
@@ -44,7 +48,7 @@ export class ProviderFactory {
     return provider();
   }
 
-  getChatProvider(name: string = process.env.CHAT_PROVIDER || 'ollama') {
+  getChatProvider(name: string = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama'): IChatProvider {
     const provider = this.registry.chatProviders.get(name);
     if (!provider) throw new Error(`Chat Provider '${name}' not registered`);
     return provider();

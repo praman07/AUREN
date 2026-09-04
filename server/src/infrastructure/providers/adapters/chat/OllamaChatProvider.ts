@@ -1,48 +1,47 @@
-import { env } from '../../../../shared/config/env';
+import { IChatProvider, ChatOptions, ChatMessage } from '../../interfaces/IChatProvider';
+import { getOllamaChatModel, getOllamaModelConfig } from '../../../../ai/models/OllamaModel';
 
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
+export { ChatMessage, ChatOptions };
 
-export interface ChatStreamChunk {
-  content: string;
-}
-
-export class OllamaChatProvider {
-  async *streamChat(messages: ChatMessage[]): AsyncGenerator<string, void, unknown> {
-    const res = await fetch(`${env.OLLAMA_API_URL || 'http://localhost:11434'}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: env.OLLAMA_MODEL || 'qwen2.5:14b',
-        messages: messages,
-        stream: true
-      })
+export class OllamaChatProvider implements IChatProvider {
+  /**
+   * Returns a configured ChatOllama instance for the given options.
+   */
+  public getChatModel(options: ChatOptions = {}) {
+    return getOllamaChatModel({
+      baseUrl: options.baseUrl || process.env.LLM_BASE_URL || process.env.OLLAMA_BASE_URL || process.env.OLLAMA_API_URL,
+      modelName: options.modelName,
+      temperature: options.temperature,
+      numPredict: options.numPredict,
+      numCtx: options.numCtx,
+      format: options.format
     });
+  }
 
-    if (!res.ok) throw new Error(`Ollama Chat Error: ${res.statusText}`);
-    
-    if (!res.body) return;
+  /**
+   * Returns model configuration (including numCtx and resolved model name) for budget calculations.
+   */
+  public getModelConfig(options: ChatOptions = {}) {
+    return getOllamaModelConfig({
+      baseUrl: options.baseUrl || process.env.LLM_BASE_URL || process.env.OLLAMA_BASE_URL || process.env.OLLAMA_API_URL,
+      modelName: options.modelName,
+      temperature: options.temperature,
+      numPredict: options.numPredict,
+      numCtx: options.numCtx,
+      format: options.format
+    });
+  }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunkStr = decoder.decode(value, { stream: true });
-      const lines = chunkStr.split('\n').filter(l => l.trim() !== '');
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line);
-          if (parsed.message?.content) {
-            yield parsed.message.content;
-          }
-        } catch (e) {
-          // ignore parse errors for partial chunks
-        }
-      }
+  /**
+   * Streams chat completion token-by-token.
+   */
+  public async *streamChat(messages: (ChatMessage | any)[], options: ChatOptions = {}): AsyncGenerator<string, void, unknown> {
+    const model = this.getChatModel(options);
+    const stream = await model.stream(messages);
+
+    for await (const chunk of stream) {
+      const token = typeof chunk.content === 'string' ? chunk.content : String(chunk.content || '');
+      yield token;
     }
   }
 }

@@ -1,0 +1,12 @@
+Company Policy: AUREN Remote Work Guidelines
+Clearance: Confidential
+Department: Engineering, Human Resources
+
+1. Core Working Hours
+All employees in the Engineering and HR departments must be online and active between 10:00 AM and 4:00 PM EST.
+
+2. Equipment and Stipends
+The company provides a $500 home office stipend for all remote workers to purchase ergonomic furniture or computer peripherals.
+
+3. Security Protocol
+All access to enterprise code repositories and the knowledge platform must go through the corporate Zero-Trust Network Access (ZTNA) gateway. Credentials must never be shared.

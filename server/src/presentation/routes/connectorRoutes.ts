@@ -10,9 +10,13 @@ import { ConnectConnectorSchema, ConnectorIdParamSchema } from '../../applicatio
 const router = Router();
 const controller = new ConnectorController(connectorService as ConnectorService);
 
+// Google OAuth callback endpoint
+router.get('/google/callback', controller.handleGoogleCallback);
+
 router.use(requireAuth);
 
 router.get('/', controller.list);
+router.get('/google/auth-url', controller.getGoogleAuthUrl);
 router.post('/connect', requireSuperAdmin, validateRequest(ConnectConnectorSchema), controller.connect);
 router.post('/:id/sync', requireSuperAdmin, validateRequest(ConnectorIdParamSchema), controller.sync);
 router.get('/:id', validateRequest(ConnectorIdParamSchema), controller.details);

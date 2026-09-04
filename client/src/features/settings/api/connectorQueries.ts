@@ -3,14 +3,21 @@ import { useApi } from '../../../core/api/useApi';
 
 export interface ConnectorAccount {
   id: string;
-  provider: 'GITHUB' | 'GMAIL' | 'NOTION' | string;
+  provider: 'GITHUB' | 'GMAIL' | 'NOTION' | 'GOOGLE_DRIVE' | 'SLACK' | string;
   name: string;
   configured: boolean;
   account: {
     id: string;
+    accountId?: string;
     accountEmail?: string;
     lastSyncAt?: string | null;
-    status?: string;
+    lastSyncStatus?: 'PENDING' | 'SYNCING' | 'SUCCESS' | 'FAILED' | string | null;
+    status?: 'ACTIVE' | 'INACTIVE' | 'ERROR' | string;
+    lastError?: string | null;
+    lastErrorAt?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+    hasStoredCredential?: boolean;
     errorCount?: number;
   } | null;
 }
@@ -22,6 +29,26 @@ export function useConnectors() {
     queryFn: async () => {
       const response = await api.get('/connectors');
       return (response.data || response) as ConnectorAccount[];
+    },
+    refetchInterval: (query) => {
+      const list = query.state.data;
+      if (Array.isArray(list)) {
+        const isSyncing = list.some(
+          c => c.account?.lastSyncStatus === 'PENDING' || c.account?.lastSyncStatus === 'SYNCING'
+        );
+        if (isSyncing) return 3000;
+      }
+      return false;
+    },
+  });
+}
+
+export function useGetGoogleAuthUrl() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async () => {
+      const response = await api.get('/connectors/google/auth-url');
+      return response.data as { url: string };
     },
   });
 }
@@ -73,6 +100,8 @@ export function useDisconnectConnector() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connectors'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
     },
   });
 }
+

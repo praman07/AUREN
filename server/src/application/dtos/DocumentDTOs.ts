@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DocumentClassification, DocumentVisibility } from '@prisma/client';
+import { DocumentClassification, DocumentVisibility, DocumentScope } from '@prisma/client';
 
 const policyLists = {
   allowedRoles: z.array(z.string()).optional(),
@@ -15,6 +15,7 @@ export const CreateDocumentSchema = z.object({
     title: z.string().min(1, 'Title is required').max(255),
     classification: z.nativeEnum(DocumentClassification).optional(),
     visibility: z.nativeEnum(DocumentVisibility).optional(),
+    scope: z.nativeEnum(DocumentScope).optional(),
     departmentId: z.string().nullable().optional(),
     mimeType: z.string().min(1),
     sizeBytes: z.number().int().positive(),
@@ -28,6 +29,7 @@ export const UpdateDocumentSchema = z.object({
     title: z.string().min(1).max(255).optional(),
     classification: z.nativeEnum(DocumentClassification).optional(),
     visibility: z.nativeEnum(DocumentVisibility).optional(),
+    scope: z.nativeEnum(DocumentScope).optional(),
     departmentId: z.string().nullable().optional(),
     isFavorited: z.boolean().optional(),
     ...policyLists,

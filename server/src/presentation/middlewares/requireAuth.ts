@@ -47,6 +47,31 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     return;
   }
 
+  // Development/Test mock token bypass
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const decoded = Buffer.from(token, 'base64').toString('utf8');
+      if (decoded.trim().startsWith('{')) {
+        const parsed = JSON.parse(decoded);
+        req.user = {
+          id: parsed.id || 'mock-user-id',
+          email: parsed.email || 'mock@ekos.app',
+          organizationId: parsed.organizationId || 'mock-org-id',
+          industry: parsed.industry || 'CORPORATE',
+          role: parsed.role || 'MEMBER',
+          roles: parsed.roles || [parsed.role || 'MEMBER'],
+          departments: parsed.departments || [],
+          departmentId: parsed.departmentId || null,
+          isSuperAdmin: parsed.isSuperAdmin || parsed.role === 'ADMIN',
+          ...parsed
+        };
+        return next();
+      }
+    } catch (err) {
+      // Fall through to database session resolution
+    }
+  }
+
   try {
     const user = await authService.resolveSession(token);
     if (!user) {

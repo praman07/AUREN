@@ -99,8 +99,32 @@ export const LoginForm: React.FC = () => {
         </button>
       </form>
 
-      <div className="mt-8 text-center">
-        <p className="text-xs text-muted-foreground">
+      <div className="mt-6 pt-4 border-t border-border/50 text-center">
+        <p className="text-xs font-medium text-muted-foreground mb-2">Development Demo Accounts:</p>
+        <div className="flex flex-wrap gap-2 justify-center">
+          <button
+            type="button"
+            onClick={() => { setEmail('admin@ekos.app'); setPassword('admin12345'); }}
+            className="px-2.5 py-1 bg-muted hover:bg-muted/80 text-foreground text-xs rounded transition-colors"
+          >
+            System Admin
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEmail('alice@ekos.app'); setPassword('alice12345'); }}
+            className="px-2.5 py-1 bg-muted hover:bg-muted/80 text-foreground text-xs rounded transition-colors"
+          >
+            Alice (Engineering)
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEmail('bob@ekos.app'); setPassword('bob12345'); }}
+            className="px-2.5 py-1 bg-muted hover:bg-muted/80 text-foreground text-xs rounded transition-colors"
+          >
+            Bob (HR)
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-4">
           Don't have an account?{' '}
           <Link to="/signup" className="text-primary hover:underline font-medium">
             Contact your IT Administrator

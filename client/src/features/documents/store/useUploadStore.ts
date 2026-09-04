@@ -13,8 +13,12 @@ export interface UploadFile {
 
 interface UploadState {
   isOpen: boolean;
+  targetScope: 'ORGANIZATION' | 'PERSONAL';
+  lockedScope?: 'ORGANIZATION' | 'PERSONAL' | null;
   files: UploadFile[];
-  setIsOpen: (isOpen: boolean) => void;
+  setIsOpen: (isOpen: boolean, lockedScope?: 'ORGANIZATION' | 'PERSONAL' | null) => void;
+  openUploadDialog: (scope?: 'ORGANIZATION' | 'PERSONAL' | null) => void;
+  setTargetScope: (targetScope: 'ORGANIZATION' | 'PERSONAL') => void;
   addFiles: (newFiles: File[]) => void;
   updateFile: (id: string, updates: Partial<UploadFile>) => void;
   removeFile: (id: string) => void;
@@ -25,8 +29,22 @@ interface UploadState {
 
 export const useUploadStore = create<UploadState>((set) => ({
   isOpen: false,
+  targetScope: 'ORGANIZATION',
+  lockedScope: null,
   files: [],
-  setIsOpen: (isOpen) => set({ isOpen }),
+  setIsOpen: (isOpen, lockedScope = null) => set((state) => ({
+    isOpen,
+    lockedScope,
+    targetScope: lockedScope || state.targetScope,
+  })),
+  openUploadDialog: (scope = null) => set((state) => ({
+    isOpen: true,
+    lockedScope: scope,
+    targetScope: scope || state.targetScope,
+  })),
+  setTargetScope: (targetScope) => set((state) => ({
+    targetScope: state.lockedScope || targetScope
+  })),
   
   addFiles: (newFiles) => {
     const validExtensions = ['pdf', 'docx', 'txt', 'md', 'csv'];

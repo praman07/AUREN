@@ -2,17 +2,36 @@ import { IAIGateway } from './IAIGateway';
 import { AICapability, InferenceRequest, InferenceResponse, InferenceContext } from './types';
 import { ProviderFactory } from '../providers/registry/ProviderFactory';
 import { CircuitBreaker } from './CircuitBreaker';
+import { ChatOptions } from '../providers/interfaces/IChatProvider';
 
 export class AIGateway implements IAIGateway {
   private circuitBreakers = new Map<string, CircuitBreaker>();
 
-  constructor(private readonly providerFactory: ProviderFactory) {}
+  constructor(private readonly providerFactory: ProviderFactory = new ProviderFactory()) {}
 
   private getCircuitBreaker(providerName: string): CircuitBreaker {
     if (!this.circuitBreakers.has(providerName)) {
       this.circuitBreakers.set(providerName, new CircuitBreaker(5, 60000));
     }
     return this.circuitBreakers.get(providerName)!;
+  }
+
+  public getChatModel(options: ChatOptions = {}): any {
+    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama';
+    const provider = this.providerFactory.getChatProvider(providerName);
+    return provider.getChatModel(options);
+  }
+
+  public getModelConfig(options: ChatOptions = {}): any {
+    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama';
+    const provider = this.providerFactory.getChatProvider(providerName);
+    return provider.getModelConfig ? provider.getModelConfig(options) : {};
+  }
+
+  public async streamChat(messages: any[], options: ChatOptions = {}): Promise<AsyncGenerator<string, void, unknown>> {
+    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama';
+    const provider = this.providerFactory.getChatProvider(providerName);
+    return provider.streamChat(messages, options);
   }
 
   public async execute<TRequest, TResponse>(request: InferenceRequest<TRequest>): Promise<InferenceResponse<TResponse>> {
@@ -26,7 +45,6 @@ export class AIGateway implements IAIGateway {
       const result = await this.routeRequest<TRequest, TResponse>(request.capability, request.payload, fullContext, false);
       
       fullContext.latencyMs = Date.now() - startTime;
-      // Telemetry would be logged here
       
       return {
         result,
@@ -57,17 +75,26 @@ export class AIGateway implements IAIGateway {
     let provider: any;
     let providerName = '';
 
-    // Resolve concrete provider through Factory
     switch (capability) {
+      case AICapability.CHAT:
+        providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama';
+        provider = this.providerFactory.getChatProvider(providerName);
+        context.providerUsed = providerName;
+        
+        const chatBreaker = this.getCircuitBreaker(providerName);
+        return await chatBreaker.execute(async () => {
+          const { messages, options } = payload as any;
+          const model = provider.getChatModel(options);
+          return (await model.invoke(messages)) as unknown as TResponse;
+        });
+
       case AICapability.EMBEDDING:
-        // Normally env vars dictate this, here we mock a fallback logic
-        providerName = isFallback ? 'ollama' : (process.env.EMBEDDING_PROVIDER || 'local');
+        providerName = isFallback ? 'ollama' : (process.env.EMBEDDING_PROVIDER || 'ollama');
         provider = this.providerFactory.getEmbeddingProvider(providerName);
         context.providerUsed = providerName;
         
         const breaker = this.getCircuitBreaker(providerName);
         return await breaker.execute(async () => {
-          // Using exact payload signature depending on capability (this is abstract)
           const text = payload as unknown as string;
           return (await provider.embedText(text)) as unknown as TResponse;
         });
@@ -88,12 +115,6 @@ export class AIGateway implements IAIGateway {
     }
   }
 
-  public async streamChat(request: { messages: any[], context: any }): Promise<AsyncGenerator<string, void, unknown>> {
-    const providerName = process.env.CHAT_PROVIDER || 'ollama';
-    const provider = this.providerFactory.getChatProvider(providerName);
-    return provider.streamChat(request.messages);
-  }
-
   public async embed(request: { texts: string[], context: any }): Promise<{ model: string, dimension: number, embeddings: number[][] }> {
     const providerName = process.env.EMBEDDING_PROVIDER || 'ollama';
     const provider = this.providerFactory.getEmbeddingProvider(providerName);
@@ -105,4 +126,3 @@ export class AIGateway implements IAIGateway {
     };
   }
 }
-

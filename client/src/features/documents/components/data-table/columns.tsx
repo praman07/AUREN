@@ -1,7 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Document } from '../../api/documentQueries';
 import { FileText, MoreHorizontal } from 'lucide-react';
-import { ClassificationBadge, AIStatusBadge } from '../ui/DocumentStatusBadges';
+import { ClassificationBadge, AIStatusBadge, ScopeBadge } from '../ui/DocumentStatusBadges';
 
 export const columns: ColumnDef<Document>[] = [
   {
@@ -43,6 +43,13 @@ export const columns: ColumnDef<Document>[] = [
       const owner = row.original.owner;
       return <div className="truncate w-[120px]">{owner ? `${owner.firstName} ${owner.lastName}` : 'Unknown'}</div>;
     }
+  },
+  {
+    id: 'scope',
+    header: 'Scope',
+    cell: ({ row }) => (
+      <ScopeBadge scope={row.original.scope} visibility={row.original.visibility} />
+    )
   },
   {
     accessorKey: 'classification',

@@ -200,4 +200,104 @@ export class ConnectorController {
       next(error);
     }
   };
+
+  public getGoogleAuthUrl = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { GoogleOAuthService } = await import('../../infrastructure/connectors/GoogleOAuthService');
+      const oauthService = new GoogleOAuthService();
+      const statePayload = JSON.stringify({
+        organizationId: req.user!.organizationId,
+        userId: req.user!.id
+      });
+      const state = Buffer.from(statePayload).toString('base64');
+      const url = oauthService.getAuthUrl(state);
+
+      res.status(200).json({ success: true, data: { url } });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public handleGoogleCallback = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5174';
+
+    try {
+      const { code, state, error: oauthError } = req.query;
+
+      if (oauthError) {
+        res.redirect(`${frontendUrl}/settings/connectors?error=${encodeURIComponent(String(oauthError))}`);
+        return;
+      }
+
+      if (!code || typeof code !== 'string') {
+        res.redirect(`${frontendUrl}/settings/connectors?error=missing_authorization_code`);
+        return;
+      }
+
+      let organizationId = req.user?.organizationId;
+      let userId = req.user?.id;
+
+      if (state && typeof state === 'string') {
+        try {
+          const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+          if (decoded.organizationId) organizationId = decoded.organizationId;
+          if (decoded.userId) userId = decoded.userId;
+        } catch (e) {
+          console.warn('ConnectorController: Failed to decode OAuth state payload', e);
+        }
+      }
+
+      if (!organizationId || !userId) {
+        res.redirect(`${frontendUrl}/settings/connectors?error=unauthorized_context`);
+        return;
+      }
+
+      const { GoogleOAuthService } = await import('../../infrastructure/connectors/GoogleOAuthService');
+      const oauthService = new GoogleOAuthService();
+      const tokens = await oauthService.exchangeCodeForTokens(code);
+
+      const encryptedAccess = EncryptionService.encrypt(tokens.accessToken);
+      const encryptedRefresh = tokens.refreshToken ? EncryptionService.encrypt(tokens.refreshToken) : null;
+      const accountEmail = tokens.email || `gdrive-${userId.substring(0, 8)}@google.com`;
+      const accountId = `gdrive_${accountEmail}`;
+
+      const account = await prisma.connectedAccount.upsert({
+        where: { provider_accountId: { provider: 'GOOGLE_DRIVE', accountId } },
+        update: {
+          organizationId,
+          userId,
+          accountEmail,
+          accessToken: encryptedAccess.encrypted,
+          refreshToken: encryptedRefresh ? encryptedRefresh.encrypted : null,
+          tokenIv: encryptedAccess.iv,
+          status: 'ACTIVE',
+          lastSyncStatus: null,
+          lastError: null,
+          lastErrorAt: null,
+        },
+        create: {
+          organizationId,
+          userId,
+          provider: 'GOOGLE_DRIVE',
+          accountId,
+          accountEmail,
+          accessToken: encryptedAccess.encrypted,
+          refreshToken: encryptedRefresh ? encryptedRefresh.encrypted : null,
+          tokenIv: encryptedAccess.iv,
+          scopes: tokens.scope || 'https://www.googleapis.com/auth/drive.readonly',
+        },
+      });
+
+      // Automatically initiate initial sync asynchronously
+      this.connectorService.syncConnectedAccount(account.id, 'GOOGLE_DRIVE').catch(err => {
+        console.error('ConnectorController: Initial Google Drive sync failed:', err);
+      });
+
+      // Redirect back to frontend settings connectors page
+      res.redirect(`${frontendUrl}/settings/connectors?connected=GOOGLE_DRIVE`);
+    } catch (error: any) {
+      console.error('ConnectorController: Google OAuth callback error:', error);
+      res.redirect(`${frontendUrl}/settings/connectors?error=${encodeURIComponent(error?.message || 'OAuth authentication failed')}`);
+    }
+  };
 }

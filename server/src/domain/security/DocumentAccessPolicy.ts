@@ -12,6 +12,7 @@ export interface AccessControlledDocument {
   ownerId: string;
   departmentId: string | null;
   visibility: 'ORG_WIDE' | 'DEPARTMENT' | 'PRIVATE';
+  scope?: 'PERSONAL' | 'ORGANIZATION';
   allowedRoles?: string[];
   deniedRoles?: string[];
   allowedUsers?: string[];
@@ -25,6 +26,10 @@ export interface AccessControlledDocument {
  * PermissionFilter used for Qdrant/BM25: organization MUST match, any
  * explicit deny (user/role/department) wins, then ownership or explicit
  * allow or visibility grants.
+ *
+ * For PERSONAL scope:
+ * Access requires owner access OR explicit ACL inclusion (user/role/department).
+ * General ORG_WIDE or DEPARTMENT visibility does NOT grant access to personal documents.
  *
  * This is enforced server-side on document metadata endpoints so that
  * authorization never depends on the client or on LLM instruction.
@@ -56,7 +61,12 @@ export class DocumentAccessPolicy {
     // 7. Explicit department allow
     if (doc.allowedDepartments && subject.departments.some((d) => doc.allowedDepartments!.includes(d))) return true;
 
-    // 8. Visibility-based grant
+    // 8. Scope Check: PERSONAL documents do NOT grant access via general visibility
+    if (doc.scope === 'PERSONAL') {
+      return false;
+    }
+
+    // 9. Visibility-based grant (ORGANIZATION scope)
     if (doc.visibility === 'ORG_WIDE') return true;
     if (doc.visibility === 'DEPARTMENT' && doc.departmentId && subject.departments.includes(doc.departmentId)) return true;
 

@@ -16,6 +16,9 @@ import { providerFactory, aiGateway } from '../../di';
 
 const router = Router();
 
+import { DuckDuckGoSearchProvider } from '../../infrastructure/search/WebSearchProvider';
+import { DateTimeProvider } from '../../infrastructure/tools/DateTimeProvider';
+
 const permissionFilter = new PermissionFilter();
 
 const vectorSearch = new VectorSearchProvider(permissionFilter, providerFactory);
@@ -32,9 +35,24 @@ const retrievalEngine = new RetrievalEngine(
   promptBuilder
 );
 
-const ragService = new RAGService(retrievalEngine, aiGateway);
+const webSearchProvider = new DuckDuckGoSearchProvider();
+const dateTimeProvider = new DateTimeProvider();
+
+const ragService = new RAGService();
 const chatController = new ChatController(ragService);
 
 router.post('/stream', requireAuth, chatController.stream);
 
+// Conversation CRUD endpoints
+router.get('/conversations', requireAuth, chatController.getConversations);
+router.get('/conversations/:id', requireAuth, chatController.getConversationById);
+router.patch('/conversations/:id', requireAuth, chatController.updateConversation);
+router.delete('/conversations/:id', requireAuth, chatController.deleteConversation);
+
+// User Memory management endpoints
+router.get('/memories', requireAuth, chatController.getMemories);
+router.post('/memories', requireAuth, chatController.createMemory);
+router.delete('/memories/:id', requireAuth, chatController.deleteMemory);
+
 export default router;
+

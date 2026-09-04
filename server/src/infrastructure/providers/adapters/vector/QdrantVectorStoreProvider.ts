@@ -6,13 +6,25 @@ export class QdrantVectorStoreProvider implements IVectorStoreProvider {
   private client: QdrantClient;
 
   constructor() {
-    this.client = new QdrantClient({ url: env.QDRANT_URL || 'http://localhost:6333' });
+    this.client = new QdrantClient({ url: env.QDRANT_URL || 'http://localhost:6333', checkCompatibility: false });
   }
 
   async ensureCollection(collection: string, dimension: number): Promise<void> {
     try {
       const exists = await this.client.collectionExists(collection);
-      if (!exists.exists) {
+      if (exists.exists) {
+        const info = await this.client.getCollection(collection);
+        const existingSize = (info.config?.params?.vectors as any)?.size;
+        if (existingSize && existingSize !== dimension) {
+          console.warn(`[Qdrant] Collection ${collection} has dimension ${existingSize}, but requested is ${dimension}. Recreating collection...`);
+          await this.client.deleteCollection(collection);
+          await this.client.createCollection(collection, {
+            vectors: { size: dimension, distance: 'Cosine' },
+          });
+          console.log(`[Qdrant] Recreated collection ${collection} with dim ${dimension}`);
+          return;
+        }
+      } else {
         await this.client.createCollection(collection, {
           vectors: { size: dimension, distance: 'Cosine' },
         });
@@ -43,6 +55,7 @@ export class QdrantVectorStoreProvider implements IVectorStoreProvider {
 
   async search(collection: string, vector: number[], limit: number, filter?: any): Promise<any[]> {
     try {
+      await this.ensureCollection(collection, vector.length);
       console.log(`[Qdrant] Searching collection ${collection}`);
       const response = await this.client.query(collection, {
         query: vector,
@@ -71,6 +84,39 @@ export class QdrantVectorStoreProvider implements IVectorStoreProvider {
       });
     } catch (error) {
       console.error(`[Qdrant] Error deleting points from ${collection}:`, error);
+    }
+  }
+
+  async deleteDocument(collection: string, documentId: string): Promise<void> {
+    try {
+      await this.client.delete(collection, {
+        wait: true,
+        filter: {
+          must: [
+            { key: 'documentId', match: { value: documentId } }
+          ]
+        }
+      });
+      console.log(`[Qdrant] Deleted points for document ${documentId} from ${collection}`);
+    } catch (error) {
+      console.error(`[Qdrant] Error deleting document ${documentId} from ${collection}:`, error);
+    }
+  }
+
+  async updatePayloadForDocument(collection: string, documentId: string, payload: Record<string, any>): Promise<void> {
+    try {
+      await this.client.setPayload(collection, {
+        payload,
+        filter: {
+          must: [
+            { key: 'documentId', match: { value: documentId } }
+          ]
+        },
+        wait: true
+      });
+      console.log(`[Qdrant] Updated payload for document ${documentId} in ${collection}`);
+    } catch (error) {
+      console.warn(`[Qdrant] Warning: Could not update payload for document ${documentId}:`, error);
     }
   }
 }

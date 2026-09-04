@@ -44,15 +44,30 @@ export class EmbeddingService {
           }
         });
 
-        // 4. Update Database
-        // Note: we store metadata and conditionally the vectorData if needed.
+        // 4. Validate embedding output structure
+        if (!embeddingResult || !Array.isArray(embeddingResult.embeddings) || embeddingResult.embeddings.length !== batch.length) {
+          throw new Error(`Embedding provider returned invalid response structure or mismatched batch length. Expected ${batch.length}, got ${embeddingResult?.embeddings?.length ?? 0}`);
+        }
+
+        // Validate each chunk's vector
+        for (let idx = 0; idx < batch.length; idx++) {
+          const vector = embeddingResult.embeddings[idx];
+          if (!Array.isArray(vector) || vector.length === 0) {
+            throw new Error(`Embedding provider returned empty or non-array vector for chunk ID ${batch[idx].id} at index ${idx}`);
+          }
+          if (embeddingResult.dimension && vector.length !== embeddingResult.dimension) {
+            throw new Error(`Vector dimension mismatch for chunk ID ${batch[idx].id}: expected ${embeddingResult.dimension}, got ${vector.length}`);
+          }
+        }
+
+        // 5. Update Database with validated vector data
         const updatePromises = batch.map((chunk, index) => {
           return prisma.documentChunk.update({
             where: { id: chunk.id },
             data: {
               embeddingStatus: 'COMPLETED',
               embeddingModel: embeddingResult.model,
-              embeddingDim: embeddingResult.dimension,
+              embeddingDim: embeddingResult.dimension || embeddingResult.embeddings[index].length,
               vectorData: embeddingResult.embeddings[index],
               metadata: {
                 ...(typeof chunk.metadata === 'object' && chunk.metadata !== null ? chunk.metadata : {}),
@@ -84,6 +99,21 @@ export class EmbeddingService {
     } catch (error: any) {
       console.error('Embedding Processing Failed:', error);
       
+      // Update any pending chunks to FAILED state to prevent silent persistence of invalid states
+      try {
+        await prisma.documentChunk.updateMany({
+          where: {
+            versionId: payload.versionId,
+            embeddingStatus: 'PENDING'
+          },
+          data: {
+            embeddingStatus: 'FAILED'
+          }
+        });
+      } catch (dbError) {
+        console.error('Failed to update chunk status to FAILED:', dbError);
+      }
+
       await this.orchestrator.handleEvent(PipelineEventType.EMBEDDING_FAILED, {
         ...payload,
         error: error.message

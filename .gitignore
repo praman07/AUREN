@@ -1,5 +1,30 @@
-﻿node_modules/
+**/node_modules/
+node_modules/
 dist/
 build/
 .env
+*.env
 ts_errors.txt
+
+# Binary & executable files
+*.exe
+*.dll
+*.so
+*.dylib
+*.zip
+
+# Database & Local Storage Data
+server/qdrant_storage/
+server/pgsql/
+server/pgdata/
+server/searxng/
+server/scratch/
+server/storage/
+server/qdrant.exe
+.qdrant-initialized
+server/.qdrant-initialized
+
+# Logs & temp test outputs
+*.log
+server/regression_output.txt
+server/test_output.log

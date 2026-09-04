@@ -19,6 +19,8 @@ export interface SearchRequest {
   userId: string;
   departmentIds: string[];
   roleIds: string[];
+  isSuperAdmin?: boolean;
+  scope?: 'PERSONAL' | 'ORGANIZATION';
   limit: number;
   filters?: Record<string, any>;
 }

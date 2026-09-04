@@ -31,11 +31,23 @@ export class PipelineStatusService {
     return PipelineState.UPLOADED; 
   }
 
-  async transitionState(documentId: string, organizationId: string, targetState: PipelineState, reason?: string): Promise<void> {
-    console.log(`[PipelineStatus] Transitioning ${documentId} to ${targetState}`);
+  async transitionState(documentId: string, organizationId: string, targetState: PipelineState, reason?: string, expectedCurrentState?: PipelineState): Promise<PipelineState> {
+    console.log(`[PipelineStatus] Transitioning ${documentId} to ${targetState}${expectedCurrentState ? ` (from expected ${expectedCurrentState})` : ''}`);
+    let newStateToReturn: PipelineState = targetState;
+
     await this.unitOfWork.execute(async (tx) => {
-      const currentState = await this.getCurrentState(documentId);
+      const currentState = expectedCurrentState ?? await this.getCurrentState(documentId);
+      
+      // If current state is already FAILED or PARTIALLY_FAILED and we try to record completion, prevent race condition transition crash
+      if ((currentState === PipelineState.FAILED || currentState === PipelineState.PARTIALLY_FAILED) && 
+          (targetState === PipelineState.EMBEDDING_COMPLETED || targetState === PipelineState.READY || targetState === PipelineState.OCR_COMPLETED || targetState === PipelineState.CHUNKING_COMPLETED)) {
+        console.warn(`[PipelineStatus] Document ${documentId} is already in ${currentState}. Ignoring stale completion state transition to ${targetState}.`);
+        newStateToReturn = currentState;
+        return;
+      }
+
       const newState = ProcessingStateMachine.transition(currentState, targetState);
+      newStateToReturn = newState;
 
       // 1. Update Document state (assuming we add this column later, mocking with audit for now)
       // await tx.document.update({ where: { id: documentId }, data: { pipelineState: newState } });
@@ -50,5 +62,7 @@ export class PipelineStatusService {
         }
       });
     });
+
+    return newStateToReturn;
   }
 }

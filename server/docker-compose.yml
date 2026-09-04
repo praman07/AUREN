@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   qdrant:
@@ -7,3 +6,50 @@ services:
       - "6333:6333"
     volumes:
       - ./qdrant_storage:/qdrant/storage
+
+  # Self-hosted SearXNG — zero-cost, no API key needed
+  searxng:
+    image: searxng/searxng:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - SEARXNG_SECRET_KEY=auren-local-searxng-secret
+      - SEARXNG_BASE_URL=http://localhost:8080/
+    volumes:
+      - ./searxng:/etc/searxng
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Crawl4AI — deep content extraction service
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    ports:
+      - "11235:11235"
+    environment:
+      - CRAWL4AI_API_TOKEN=auren_crawl4ai_secret_token_2026
+      - CRAWL4AI_HOST=0.0.0.0
+      - HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:11235/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ekos_db

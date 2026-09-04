@@ -86,7 +86,7 @@ async function seedData() {
     await prisma.documentChunk.createMany({ data: chunks });
 
     const qdrant = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' });
-    const collectionName = `org_${orgId}_docs`;
+    const collectionName = `org_${orgId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
     
     // Ensure collection exists
     try {

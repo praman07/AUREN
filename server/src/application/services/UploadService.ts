@@ -26,67 +26,139 @@ export class UploadService {
     fileBuffer: Buffer, 
     filename: string, 
     mimeType: string, 
-    sizeBytes: number
+    sizeBytes: number,
+    scope?: string
   ) {
-    const documentId = uuidv4();
-    const versionId = uuidv4();
-    
-    // 1. Generate Storage Path
-    const storagePath = `uploads/${organizationId}/${documentId}/${versionId}/${filename}`;
+    // 1. Calculate SHA-256 hash from the uploaded file buffer
+    const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
-    // 2. Upload to Storage Provider (S3, Local, Azure)
+    // 2. Check for an existing exact content match (same hash + organizationId + non-deleted Document)
+    const existingVersion = await this.unitOfWork.execute(async (tx) => {
+      return await tx.documentVersion.findFirst({
+        where: {
+          hash: fileHash,
+          deletedAt: null,
+          document: {
+            organizationId,
+            deletedAt: null
+          }
+        },
+        select: {
+          id: true,
+          documentId: true
+        }
+      });
+    });
+
+    // 3. If exact content already exists in this organization, return immediately
+    if (existingVersion) {
+      console.log(`[UploadService] Exact file hash ${fileHash} already exists for document ${existingVersion.documentId}. Skipping ingestion.`);
+      return {
+        documentId: existingVersion.documentId,
+        versionId: existingVersion.id,
+        status: 'EXISTS'
+      };
+    }
+
+    // 4. Check for an existing Document with the same filename/title within the organization
+    const existingDocument = await this.unitOfWork.execute(async (tx) => {
+      return await tx.document.findFirst({
+        where: {
+          organizationId,
+          title: filename,
+          deletedAt: null
+        },
+        include: {
+          versions: {
+            where: { deletedAt: null },
+            orderBy: { version: 'desc' },
+            take: 1
+          }
+        }
+      });
+    });
+
+    const isNewVersion = !!existingDocument;
+    const targetDocumentId = existingDocument ? existingDocument.id : uuidv4();
+    const targetVersionId = uuidv4();
+    const nextVersionNumber = isNewVersion 
+      ? ((existingDocument.versions && existingDocument.versions[0]?.version) || 1) + 1 
+      : 1;
+
+    // 5. Generate Storage Path & upload file to storage
+    const storagePath = `uploads/${organizationId}/${targetDocumentId}/${targetVersionId}/${filename}`;
     const fileUri = await this.storageProvider.upload(fileBuffer, storagePath);
 
     try {
-      // 3. Database Transaction
+      // 6. Database Transaction
       await this.unitOfWork.execute(async (tx) => {
-        const doc = await tx.document.create({
-          data: {
-            id: documentId,
-            title: filename,
-            mimeType,
-            sizeBytes,
-            classification: 'UNCLASSIFIED', // Default
-            organization: { connect: { id: organizationId } },
-            owner: { connect: { id: userId } }
-          }
-        });
+        if (!isNewVersion) {
+          const docScope = scope === 'PERSONAL' ? 'PERSONAL' : 'ORGANIZATION';
+          const docVisibility = docScope === 'PERSONAL' ? 'PRIVATE' : 'ORG_WIDE';
+          // Create new Document
+          await tx.document.create({
+            data: {
+              id: targetDocumentId,
+              title: filename,
+              mimeType,
+              sizeBytes,
+              classification: 'UNCLASSIFIED', // Default
+              scope: docScope as any,
+              visibility: docVisibility as any,
+              organization: { connect: { id: organizationId } },
+              owner: { connect: { id: userId } }
+            }
+          });
+        } else {
+          // Update existing Document metadata
+          await tx.document.update({
+            where: { id: targetDocumentId },
+            data: {
+              mimeType,
+              sizeBytes,
+              updatedAt: new Date()
+            }
+          });
+        }
 
-        // Create Version
+        // Create new DocumentVersion
         await tx.documentVersion.create({
           data: {
-            id: versionId,
-            version: 1,
+            id: targetVersionId,
+            version: nextVersionNumber,
             s3Key: storagePath,
-            hash: crypto.createHash('sha256').update(fileBuffer).digest('hex'),
-            document: { connect: { id: documentId } }
+            hash: fileHash,
+            document: { connect: { id: targetDocumentId } }
           }
         });
 
         // Create Audit Log
         await tx.auditLog.create({
           data: {
-            action: 'CREATE',
+            action: isNewVersion ? 'UPDATE' : 'CREATE',
             organization: { connect: { id: organizationId } },
             actor: { connect: { id: userId } },
-            resourceId: documentId,
-            metadata: { filename, versionId, fileUri }
+            resourceId: targetDocumentId,
+            metadata: { filename, versionId: targetVersionId, versionNumber: nextVersionNumber, fileUri }
           }
         });
       });
 
-      // 4. Dispatch Domain Events (Async)
-      await this.eventPublisher.publish('document.uploaded', { documentId, versionId, organizationId });
-      await this.eventPublisher.publish('document.processing.requested', { documentId, versionId, organizationId });
+      // 7. Dispatch Domain Events (Async) - trigger event for orchestrator for target version
+      await this.eventPublisher.publish('document.uploaded', { 
+        documentId: targetDocumentId, 
+        versionId: targetVersionId, 
+        organizationId 
+      });
 
       return {
-        documentId,
-        versionId,
+        documentId: targetDocumentId,
+        versionId: targetVersionId,
         status: 'UPLOADED'
       };
 
     } catch (error) {
-      // Compensating Action: Rollback storage if DB fails
+      // Compensating Action: Rollback storage if DB transaction fails
       await this.storageProvider.delete(storagePath);
       throw error;
     }

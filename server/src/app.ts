@@ -30,13 +30,24 @@ export const createApp = (): Application => {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(cookieParser());
 
-  // 2. Rate Limiting
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 100, 
+  // 2. Rate Limiting — tiered to allow frequent polling without hitting caps
+  // General API limiter: generous for dev usage (handles 5s polling, etc.)
+  const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
+    standardHeaders: true,
+    legacyHeaders: false,
     message: { success: false, error: 'Too many requests, please try again later.' },
   });
-  app.use('/api', limiter);
+  // Auth-specific limiter: strict to prevent brute-force attacks
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, error: 'Too many authentication attempts, please try again later.' },
+  });
+  app.use('/api', generalLimiter);
 
   // 3. Logging
   app.use(requestLogger);
@@ -50,7 +61,7 @@ export const createApp = (): Application => {
     res.status(200).json({ status: 'READY', timestamp: new Date().toISOString() });
   });
 
-  app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/auth', authLimiter, authRoutes);
   app.use('/api/v1/onboarding', onboardingRoutes);
   app.use('/api/v1/organization', organizationRoutes);
   app.use('/api/v1/documents', documentRoutes);

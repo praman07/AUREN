@@ -1,0 +1,381 @@
+<!DOCTYPE html><html class="h-full" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Login - Aether UI</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#adc6ff",
+                      "on-primary": "#ffffff",
+                      "on-secondary-fixed": "#1a1c1f",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-bright": "#f9f9f9",
+                      "surface-container-highest": "#e2e2e2",
+                      "on-surface": "#1a1c1c",
+                      "secondary-fixed-dim": "#c6c6cb",
+                      "on-tertiary-fixed": "#1a1b1f",
+                      "primary-fixed-dim": "#adc6ff",
+                      "surface-container-low": "#f3f3f4",
+                      "secondary-fixed": "#e2e2e7",
+                      "surface-container-high": "#e8e8e8",
+                      "primary": "#0058bc",
+                      "surface": "#f9f9f9",
+                      "outline-variant": "#c1c6d7",
+                      "on-tertiary-fixed-variant": "#46464b",
+                      "tertiary-container": "#747479",
+                      "on-secondary": "#ffffff",
+                      "surface-tint": "#005bc1",
+                      "surface-container": "#eeeeee",
+                      "outline": "#717786",
+                      "on-primary-fixed": "#001a41",
+                      "on-secondary-container": "#616267",
+                      "primary-container": "#0070eb",
+                      "error": "#ba1a1a",
+                      "inverse-on-surface": "#f0f1f1",
+                      "on-background": "#1a1c1c",
+                      "secondary": "#5d5e63",
+                      "on-tertiary-container": "#fefcff",
+                      "on-surface-variant": "#414755",
+                      "on-tertiary": "#ffffff",
+                      "on-error": "#ffffff",
+                      "inverse-surface": "#2f3131",
+                      "on-primary-container": "#fefcff",
+                      "tertiary-fixed": "#e3e2e7",
+                      "error-container": "#ffdad6",
+                      "on-secondary-fixed-variant": "#45474b",
+                      "on-primary-fixed-variant": "#004493",
+                      "tertiary": "#5b5c60",
+                      "surface-dim": "#dadada",
+                      "on-error-container": "#93000a",
+                      "surface-variant": "#e2e2e2",
+                      "secondary-container": "#dfdfe4",
+                      "tertiary-fixed-dim": "#c6c6cb",
+                      "background": "#f9f9f9",
+                      "primary-fixed": "#d8e2ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-max": "1280px",
+                      "base": "8px",
+                      "margin-mobile": "20px",
+                      "stack-lg": "80px",
+                      "stack-md": "32px",
+                      "gutter": "24px",
+                      "stack-sm": "12px",
+                      "margin-desktop": "64px"
+              },
+              "fontFamily": {
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "display-lg": [
+                              "64px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.04em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.5",
+                                      "letterSpacing": "0",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "1",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "letterSpacing": "0",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "28px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .liquid-glass {
+            background: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.3) 100%);
+            box-shadow: 
+                0 4px 24px -1px rgba(0, 0, 0, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8),
+                inset 1px 0 0 rgba(255, 255, 255, 0.5),
+                inset -1px 0 0 rgba(0, 0, 0, 0.02),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        
+        .input-minimal {
+            border: none;
+            border-bottom: 1px solid #E5E5E5;
+            background-color: rgba(0,0,0,0.02);
+            transition: all 0.3s ease;
+        }
+        
+        .input-minimal:focus {
+            outline: none;
+            border-bottom-color: #0058bc;
+            background-color: rgba(0,0,0,0.04);
+            box-shadow: 0 1px 0 0 #0058bc;
+        }
+
+        .grain-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="h-full bg-background text-on-surface font-body-md overflow-hidden antialiased">
+<!-- Background Animation -->
+<div class="fixed inset-0 z-0">
+<!-- STITCH_SHADER_START:ANIMATION_3 class="absolute inset-0 w-full h-full" -->
+<div class="absolute inset-0 w-full h-full" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_3" style="display:block;width:100%;height:100%" width="1230" height="753"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_3');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+varying vec2 v_texCoord;
+uniform float u_time;
+uniform vec2 u_resolution;
+
+// Noise function for grain and flow
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+void main() {
+    vec2 uv = v_texCoord;
+    
+    // Animate flow
+    float n = noise(uv * 3.0 + u_time * 0.2);
+    float n2 = noise(uv * 5.0 - u_time * 0.1);
+    
+    // Premium Blue and White Palette
+    vec3 color1 = vec3(0.0, 0.48, 1.0); // Apple Blue #007AFF
+    vec3 color2 = vec3(0.98, 0.98, 1.0); // Off-White
+    vec3 color3 = vec3(0.8, 0.9, 1.0);   // Pale Blue
+    
+    // Mix colors based on noise
+    vec3 finalColor = mix(color1, color2, n);
+    finalColor = mix(finalColor, color3, n2 * 0.5);
+    
+    // Add fine grain effect
+    float grain = (hash(uv + u_time) - 0.5) * 0.08;
+    finalColor += grain;
+    
+    gl_FragColor = vec4(finalColor, 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_3 -->
+<div class="grain-overlay"></div>
+</div>
+<!-- Main Content Area - Center Aligned -->
+<main class="relative z-10 flex h-full items-center justify-center p-margin-mobile md:p-margin-desktop">
+<!-- Login Card -->
+<div class="liquid-glass w-full max-w-md p-gutter relative overflow-hidden bg-transparent" style="backdrop-filter: blur(12px); background: linear-gradient(transparent, transparent) border-box padding-box, linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%) border-box transparent; border-radius: 32px; border: 1px solid transparent; box-shadow: rgba(0, 0, 0, 0.2) 0px 25px 50px -12px, rgba(255, 255, 255, 0.8) 1px 1px 0px inset, rgba(0, 0, 0, 0.05) -1px -1px 0px inset, rgba(0, 88, 188, 0.1) 0px 0px 30px 5px inset;">
+<!-- Specular highlight overlay for extra glass feel -->
+<div class="absolute inset-0 pointer-events-none bg-gradient-to-br from-white/40 via-white/5 to-transparent opacity-80"></div>
+<div class="relative z-10">
+<div class="text-center mb-stack-md">
+<h1 class="font-headline-lg text-headline-lg mb-base">Welcome Back</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Sign in to continue to your workspace.</p>
+</div>
+<form class="space-y-gutter">
+<div>
+<label class="block font-label-sm text-label-sm mb-base" for="email">Email</label>
+<input class="w-full px-6 py-3 font-body-md text-body-md bg-white/20 border border-white/30 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/60" id="email" name="email" placeholder="name@company.com" required="" type="email" style="box-shadow: rgba(255, 255, 255, 0.8) 2px 2px 4px inset, rgba(0, 0, 0, 0.1) -1px -1px 2px inset, rgba(0, 0, 0, 0.05) 0px 4px 12px; border-color: rgba(255, 255, 255, 0.5);">
+</div>
+<div>
+<div class="flex justify-between items-center mb-base">
+<label class="block font-label-sm text-label-sm" for="password">Password</label>
+<a class="font-label-sm text-label-sm text-primary hover:text-primary-container transition-colors" href="#">Forgot?</a>
+</div>
+<input class="w-full px-6 py-3 font-body-md text-body-md bg-white/20 border border-white/30 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/60" id="password" name="password" placeholder="••••••••" required="" type="password" style="box-shadow: rgba(255, 255, 255, 0.8) 2px 2px 4px inset, rgba(0, 0, 0, 0.1) -1px -1px 2px inset, rgba(0, 0, 0, 0.05) 0px 4px 12px; border-color: rgba(255, 255, 255, 0.5);">
+</div>
+<button class="relative w-full font-semibold text-body-md py-3 rounded-full overflow-hidden group transition-all duration-300 hover:scale-[1.02] hover:brightness-110" type="submit" style="background: rgba(255, 255, 255, 0.45); backdrop-filter: blur(16px) saturate(200%); box-shadow: rgb(255, 255, 255) 0px 2px 8px inset, rgba(0, 88, 188, 0.15) 0px -2px 10px inset, rgba(0, 0, 0, 0.1) 0px 8px 20px; border: 1px solid rgba(255, 255, 255, 0.8);"><span class="relative z-10 text-[#005bb5]">Sign In</span><div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.3)_0%,transparent_70%)]"></div></button>
+</form>
+<div class="mt-stack-md text-center">
+<p class="font-body-md text-body-md text-on-surface-variant">
+                        Don't have an account? <a class="text-primary font-semibold hover:text-primary-container transition-colors" href="#">Sign up</a>
+</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Component from JSON -->
+<footer class="absolute bottom-0 w-full bg-transparent flex flex-col md:flex-row justify-between items-center px-margin-mobile md:px-margin-desktop py-8 gap-4 z-50">
+<div class="font-display-lg text-label-sm font-bold text-on-surface">Aether UI</div>
+<div class="flex gap-gutter">
+<a class="font-label-sm text-label-sm text-secondary hover:text-primary transition-colors opacity-80 hover:opacity-100 duration-200" href="#">Privacy</a>
+<a class="font-label-sm text-label-sm text-secondary hover:text-primary transition-colors opacity-80 hover:opacity-100 duration-200" href="#">Terms</a>
+<a class="font-label-sm text-label-sm text-secondary hover:text-primary transition-colors opacity-80 hover:opacity-100 duration-200" href="#">Security</a>
+<a class="font-label-sm text-label-sm text-secondary hover:text-primary transition-colors opacity-80 hover:opacity-100 duration-200" href="#">Contact</a>
+</div>
+<div class="font-label-sm text-label-sm text-secondary opacity-80">© 2024 Aether Systems. All rights reserved.</div>
+</footer>
+
+
+
+
+</body></html>

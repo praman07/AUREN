@@ -244,7 +244,7 @@ export class SuperAdminService {
 
     if (!doc) return;
 
-    const collectionName = `org_${doc.organizationId}_docs`;
+    const collectionName = `org_${doc.organizationId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
 
     for (const version of doc.versions) {
       for (const chunk of version.chunks) {

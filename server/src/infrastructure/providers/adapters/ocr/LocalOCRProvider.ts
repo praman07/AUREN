@@ -1,30 +1,47 @@
 import { IOCRProvider, OCRExtractionResult } from '../../interfaces/IOCRProvider';
+const pdfParseModule = require('pdf-parse');
+const PDFParseClass = pdfParseModule.PDFParse;
+const pdfParseFunc = typeof pdfParseModule === 'function' ? pdfParseModule : (pdfParseModule.default || pdfParseModule);
 
 export class LocalOCRProvider implements IOCRProvider {
   async extractText(fileBuffer: Buffer, mimeType: string): Promise<OCRExtractionResult> {
     const startTime = Date.now();
     let extractedText = '';
-    let confidence = 0;
+    let confidence = 1.0;
     let pageCount = 1;
 
-    // Extraction Strategy Simulation:
-    if (mimeType === 'application/pdf') {
-      // 1. Check if PDF contains selectable text
-      const hasSelectableText = this.hasTextLayer(fileBuffer);
-      
-      if (hasSelectableText) {
-        extractedText = fileBuffer.toString('utf8');
-        confidence = 1.0;
+    try {
+      if (mimeType === 'application/pdf' || (fileBuffer.length > 4 && fileBuffer.toString('ascii', 0, 4) === '%PDF')) {
+        if (PDFParseClass) {
+          const parser = new PDFParseClass({ data: fileBuffer });
+          const result = await parser.getText();
+          extractedText = result.text || '';
+          pageCount = result.total || 1;
+          await parser.destroy().catch(() => {});
+        } else {
+          const parsed = await pdfParseFunc(fileBuffer);
+          extractedText = parsed.text || '';
+          pageCount = parsed.numpages || 1;
+        }
+        confidence = 0.95;
+      } else if (mimeType.startsWith('image/')) {
+        extractedText = "[Performed Tesseract OCR on image] ...";
+        confidence = 0.90;
       } else {
         extractedText = fileBuffer.toString('utf8');
-        confidence = 0.85;
+        confidence = 1.0;
       }
-    } else if (mimeType.startsWith('image/')) {
-      extractedText = "[Performed Tesseract OCR on image] ...";
-      confidence = 0.90;
-    } else {
-      extractedText = fileBuffer.toString('utf8');
-      confidence = 1.0;
+    } catch (err: any) {
+      console.error('[LocalOCRProvider] Error parsing document buffer:', err.message);
+      throw new Error(`Failed to extract text from document: ${err.message}`);
+    }
+
+    if (!extractedText || extractedText.trim().length === 0) {
+      throw new Error('Text extraction yielded no readable text content');
+    }
+
+    if (extractedText.trim().startsWith('%PDF-')) {
+      throw new Error('Text extraction failed: binary PDF header encountered in output');
     }
 
     return {
@@ -37,8 +54,5 @@ export class LocalOCRProvider implements IOCRProvider {
       }
     };
   }
-
-  private hasTextLayer(buffer: Buffer): boolean {
-    return true;
-  }
 }
+

@@ -21,7 +21,20 @@ export class ChunkingService {
       if (!docVersion) throw new Error('Document version not found');
 
       const txtBuffer = await this.storageProvider.download(docVersion.s3Key + '.txt');
-      const rawText = txtBuffer.toString('utf8');
+      // Strip null bytes and PostgreSQL-incompatible control characters from extracted text.
+      // PDF parsers can leave 0x00 bytes which cause "invalid byte sequence for encoding UTF8" errors.
+      const rawText = txtBuffer.toString('utf8')
+        .replace(/\0/g, '')                         // remove null bytes (0x00)
+        .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F]/g, ' ') // replace other non-printable control chars
+        .trim();
+
+      if (!rawText || rawText.length === 0) {
+        throw new Error('Chunking failed: document text is empty');
+      }
+
+      if (rawText.startsWith('%PDF-')) {
+        throw new Error('Chunking failed: raw text contains unparsed PDF binary header (%PDF-)');
+      }
 
       // Prepare RBAC metadata
       const rbacMetadata = {

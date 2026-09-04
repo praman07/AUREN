@@ -93,7 +93,7 @@ async function runConnectorTest() {
     const contextBuilder = new ContextBuilder();
     const promptBuilder = new PromptBuilder();
     const retrievalEngine = new RetrievalEngine(vectorSearch, keywordSearch, ranker, contextBuilder, promptBuilder);
-    const ragService = new RAGService(retrievalEngine, aiGateway);
+    const ragService = new RAGService();
 
     // 2. Setup Seed Data
     console.log('--- PHASE 1: DB SEEDING ---');

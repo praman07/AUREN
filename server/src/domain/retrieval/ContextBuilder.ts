@@ -27,7 +27,11 @@ export class ContextBuilder {
       return a.documentId.localeCompare(b.documentId);
     });
 
-    const text = selectedChunks.map(c => `--- Source: Doc ${c.documentId} ---\n${c.content}\n`).join('\n');
+    const text = selectedChunks.map(c => {
+      const docTitle = c.metadata?.documentTitle || `Doc ${c.documentId}`;
+      const secTitle = c.metadata?.sectionTitle ? ` - ${c.metadata.sectionTitle}` : '';
+      return `--- Source: ${docTitle}${secTitle} (ID: ${c.documentId}) ---\n${c.content}\n`;
+    }).join('\n');
 
     return {
       text,

@@ -110,7 +110,7 @@ async function runMasterPipeline() {
     const contextBuilder = new ContextBuilder();
     const promptBuilder = new PromptBuilder();
     const retrievalEngine = new RetrievalEngine(vectorSearch, bm25Search, ranker, contextBuilder, promptBuilder);
-    const ragService = new RAGService(retrievalEngine, aiGateway);
+    const ragService = new RAGService();
 
     // --- PHASE 1: LOCAL MODE ---
     console.log('\n--- Executing LOCAL MODE ---');

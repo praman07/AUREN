@@ -30,19 +30,19 @@ export function useUsers() {
     queryKey: ['users'],
     queryFn: async () => {
       const response = await api.get('/users');
-      const list = response.data || response;
+      const list = Array.isArray(response) ? response : (response.data || []);
       return list.map((user: any) => ({
         id: user.id,
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email,
         organization: user.organizationId,
-        department: user.departmentName || user.departmentId || 'Unassigned',
+        department: user.department?.name || user.departmentName || user.departmentId || 'Unassigned',
         departmentId: user.departmentId || null,
-        roles: user.roles && user.roles.length > 0 ? user.roles : ['USER'],
+        roles: Array.isArray(user.roles) && user.roles.length > 0 ? user.roles : (user.userRoles?.map((r: any) => r.name || r) || ['EMPLOYEE']),
         userRoles: user.userRoles || [],
         clearanceLevel: user.isSuperAdmin ? 5 : 1,
-        status: user.isActive ? 'ACTIVE' : 'SUSPENDED',
+        status: user.isActive !== false ? 'ACTIVE' : 'SUSPENDED',
         lastActive: user.updatedAt,
         createdAt: user.createdAt
       })) as UserDetailsExt[];

@@ -204,7 +204,7 @@ async function runAdversarialTest() {
     const contextBuilder = new ContextBuilder();
     const promptBuilder = new PromptBuilder();
     const retrievalEngine = new RetrievalEngine(vectorProvider, keywordSearch, ranker, contextBuilder, promptBuilder);
-    const ragService = new RAGService(retrievalEngine, aiGateway);
+    const ragService = new RAGService();
 
     // 7. INGEST DOCUMENTS
     console.log('--- PHASE 2: INGESTION & CHUNKING ---');

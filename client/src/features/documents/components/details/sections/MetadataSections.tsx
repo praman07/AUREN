@@ -28,6 +28,7 @@ export const OverviewSection: React.FC<{ doc: Document }> = ({ doc }) => {
 
 export const SecuritySection: React.FC<{ doc: Document }> = ({ doc }) => {
   const updatePermissions = useUpdateDocumentPermissions();
+  const [scope, setScope] = React.useState<string>(doc.scope || (doc.visibility === 'PRIVATE' ? 'PERSONAL' : 'ORGANIZATION'));
   const [visibility, setVisibility] = React.useState<string>(doc.visibility || 'PUBLIC');
   const [classification, setClassification] = React.useState<string>(doc.classification || 'PUBLIC');
   const [allowedRoles, setAllowedRoles] = React.useState<string>((doc.allowedRoles || []).join(', '));
@@ -40,6 +41,7 @@ export const SecuritySection: React.FC<{ doc: Document }> = ({ doc }) => {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    setScope(doc.scope || (doc.visibility === 'PRIVATE' ? 'PERSONAL' : 'ORGANIZATION'));
     setVisibility(doc.visibility || 'PUBLIC');
     setClassification(doc.classification || 'PUBLIC');
     setAllowedRoles((doc.allowedRoles || []).join(', '));
@@ -52,6 +54,15 @@ export const SecuritySection: React.FC<{ doc: Document }> = ({ doc }) => {
 
   const parseList = (str: string) => str.split(',').map(s => s.trim()).filter(Boolean);
 
+  const handleScopeChange = (newScope: string) => {
+    setScope(newScope);
+    if (newScope === 'PERSONAL' && visibility !== 'PRIVATE') {
+      setVisibility('PRIVATE');
+    } else if (newScope === 'ORGANIZATION' && visibility === 'PRIVATE') {
+      setVisibility('PUBLIC');
+    }
+  };
+
   const handleSave = async () => {
     setErrorMsg(null);
     setSavedSuccess(false);
@@ -59,6 +70,7 @@ export const SecuritySection: React.FC<{ doc: Document }> = ({ doc }) => {
       await updatePermissions.mutateAsync({
         id: doc.id,
         payload: {
+          scope,
           visibility,
           classification,
           allowedRoles: parseList(allowedRoles),
@@ -78,9 +90,21 @@ export const SecuritySection: React.FC<{ doc: Document }> = ({ doc }) => {
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="Security & Access Control" icon={<Shield size={14} className="text-muted-foreground" />} />
+      <SectionHeader title="Security & Scope Control" icon={<Shield size={14} className="text-muted-foreground" />} />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="text-xs font-semibold text-muted-foreground block mb-1">Knowledge Scope</label>
+          <select
+            value={scope}
+            onChange={(e) => handleScopeChange(e.target.value)}
+            className="w-full bg-background border border-input rounded-md px-2 py-1.5 text-xs font-medium focus:ring-1 focus:ring-ring text-emerald-700 bg-emerald-50/30"
+          >
+            <option value="ORGANIZATION">ORGANIZATION (Enterprise)</option>
+            <option value="PERSONAL">PERSONAL (Vault / Owner)</option>
+          </select>
+        </div>
+
         <div>
           <label className="text-xs font-semibold text-muted-foreground block mb-1">Visibility</label>
           <select

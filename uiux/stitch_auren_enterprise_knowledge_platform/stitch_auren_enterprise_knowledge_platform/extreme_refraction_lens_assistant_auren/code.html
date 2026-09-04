@@ -1,0 +1,538 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AUREN - Enterprise Intelligence Assistant</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "tertiary-fixed-dim": "#c4c7c9",
+                "primary-fixed-dim": "#b4c5ff",
+                "on-primary-fixed-variant": "#003ea8",
+                "on-surface": "#0b1c30",
+                "surface-container-low": "#eff4ff",
+                "inverse-surface": "#213145",
+                "primary-container": "#2563eb",
+                "on-tertiary-container": "#eff1f3",
+                "on-error": "#ffffff",
+                "surface-dim": "#cbdbf5",
+                "on-surface-variant": "#434655",
+                "surface": "#f8f9ff",
+                "on-secondary-fixed-variant": "#3f465c",
+                "on-tertiary-fixed": "#191c1e",
+                "surface-container-high": "#dce9ff",
+                "surface-container-lowest": "#ffffff",
+                "surface-bright": "#f8f9ff",
+                "primary": "#004ac6",
+                "secondary-container": "#dae2fd",
+                "on-primary-fixed": "#00174b",
+                "on-tertiary-fixed-variant": "#444749",
+                "on-tertiary": "#ffffff",
+                "error": "#ba1a1a",
+                "surface-container-highest": "#d3e4fe",
+                "error-container": "#ffdad6",
+                "secondary": "#565e74",
+                "surface-variant": "#d3e4fe",
+                "secondary-fixed-dim": "#bec6e0",
+                "outline-variant": "#c3c6d7",
+                "surface-tint": "#0053db",
+                "on-secondary": "#ffffff",
+                "tertiary": "#525657",
+                "secondary-fixed": "#dae2fd",
+                "on-error-container": "#93000a",
+                "tertiary-container": "#6b6e70",
+                "tertiary-fixed": "#e0e3e5",
+                "on-secondary-fixed": "#131b2e",
+                "on-primary": "#ffffff",
+                "inverse-primary": "#b4c5ff",
+                "on-background": "#0b1c30",
+                "primary-fixed": "#dbe1ff",
+                "surface-container": "#e5eeff",
+                "on-primary-container": "#eeefff",
+                "background": "#f8f9ff",
+                "outline": "#737686",
+                "on-secondary-container": "#5c647a",
+                "inverse-on-surface": "#eaf1ff"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "stack-sm": "8px",
+                "stack-lg": "32px",
+                "unit": "4px",
+                "gutter": "24px",
+                "margin-page": "40px",
+                "stack-md": "16px",
+                "stack-xl": "64px"
+        },
+        "fontFamily": {
+                "display-lg-mobile": [
+                        "Inter"
+                ],
+                "body-sm": [
+                        "Inter"
+                ],
+                "headline-md": [
+                        "Inter"
+                ],
+                "display-lg": [
+                        "Inter"
+                ],
+                "body-md": [
+                        "Inter"
+                ],
+                "label-caps": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "display-lg-mobile": [
+                        "32px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-sm": [
+                        "13px",
+                        {
+                                "lineHeight": "1.4",
+                                "letterSpacing": "0",
+                                "fontWeight": "400"
+                        }
+                ],
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "1.3",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "500"
+                        }
+                ],
+                "display-lg": [
+                        "48px",
+                        {
+                                "lineHeight": "1.1",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-md": [
+                        "14px",
+                        {
+                                "lineHeight": "1.5",
+                                "letterSpacing": "0",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-caps": [
+                        "11px",
+                        {
+                                "lineHeight": "1.2",
+                                "letterSpacing": "0.06em",
+                                "fontWeight": "700"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        /* Glassmorphism Refraction & Shading */
+        .glass-surface {
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+        
+        .composer-focus {
+            box-shadow: inset 1px 1px 0px 0px rgba(254, 240, 138, 0.6), 0 20px 50px rgba(37, 99, 235, 0.15), 0 0 0 1px rgba(96, 165, 250, 0.5) inset !important;
+            transform: scale(1.02);
+            background: rgba(255, 255, 255, 0.1) !important;
+            border-color: rgba(96, 165, 250, 0.6) !important;
+        }
+
+        /* Spring Animations */
+        @keyframes springUp {
+            0% { opacity: 0; transform: translateY(20px) scale(0.98); }
+            50% { transform: translateY(-2px) scale(1.01); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .animate-spring-up {
+            animation: springUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .stagger-1 { animation-delay: 100ms; }
+        .stagger-2 { animation-delay: 200ms; }
+        .stagger-3 { animation-delay: 300ms; }
+
+        /* Liquid Border Gradient */
+        .liquid-border {
+            position: relative;
+        }
+        .liquid-border::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 74, 198, 0.3), transparent);
+            z-index: 10;
+        }
+        
+        /* Background Shader Canvas */
+        #glcanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+        
+        /* Fine Noise Overlay */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+    </style>
+<!-- Include Shader Component Library -->
+<script src="https://unpkg.com/@auren-ds/shader-components@1.0.0/dist/index.umd.js"></script>
+</head>
+<body class="text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden relative bg-transparent">
+<!-- WebGL Background -->
+<!-- STITCH_SHADER_START:ANIMATION_23 class="fixed inset-0 w-full h-full z-0 pointer-events-none" -->
+<div class="fixed inset-0 w-full h-full z-0 pointer-events-none" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_23" style="display:block;width:100%;height:100%" width="1518" height="1026"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_23');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+
+varying vec2 v_texCoord;
+
+// Simplex noise helper
+vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+
+float snoise(vec2 v){
+  const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+           -0.577350269189626, 0.024390243902439);
+  vec2 i  = floor(v + dot(v, C.yy) );
+  vec2 x0 = v -   i + dot(i, C.xx);
+  vec2 i1;
+  i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+  vec4 x12 = x0.xyxy + C.xxzz;
+  x12.xy -= i1;
+  i = mod(i, 289.0);
+  vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+  + i.x + vec3(0.0, i1.x, 1.0 ));
+  vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+    dot(x12.zw,x12.zw)), 0.0);
+  m = m*m ;
+  m = m*m ;
+  vec3 x = 2.0 * fract(p * C.www) - 1.0;
+  vec3 h = abs(x) - 0.5;
+  vec3 ox = floor(x + 0.5);
+  vec3 a0 = x - ox;
+  m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+  vec3 g;
+  g.x  = a0.x  * x0.x  + h.x  * x0.y;
+  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+  return 130.0 * dot(m, g);
+}
+
+float random (vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+}
+
+void main() {
+    vec2 uv = v_texCoord;
+    
+    float t1 = u_time * 0.5;
+    float t2 = u_time * 0.3;
+    
+    // Deeper noise for more "liquid" distortion base
+    float n1 = snoise(uv * 1.0 + vec2(cos(t1), sin(t1 * 0.8)));
+    float n2 = snoise(uv * 2.0 - vec2(sin(t2 * 1.2), cos(t2)));
+    float n3 = snoise(uv * 4.0 + vec2(t1 * 0.5, -t2 * 0.3));
+    
+    // Palette with Auren Blue and deeper accents for distortion contrast
+    vec3 color1 = vec3(0.145, 0.388, 0.921); // Auren Blue
+    vec3 color2 = vec3(0.973, 0.976, 1.0);   // Surface
+    vec3 color3 = vec3(0.85, 0.9, 1.0);      // Soft accent
+    vec3 color4 = vec3(0.05, 0.15, 0.5);     // Deep base
+    
+    vec3 mixedColor = mix(color2, color3, n1 * 0.5 + 0.5);
+    mixedColor = mix(mixedColor, color1, clamp(n2 * 0.7, 0.0, 1.0));
+    mixedColor = mix(mixedColor, color4, clamp(n3 * 0.3, 0.0, 1.0));
+    
+    // Intense Grain
+    float grain = random(uv + fract(u_time)) * 0.1;
+    mixedColor -= grain;
+    
+    gl_FragColor = vec4(mixedColor, 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_23 -->
+<div class="noise-overlay z-0"></div>
+<!-- TopNavBar (Shared Component) -->
+<nav class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-stack-md px-6 h-12 transition-all duration-300 bg-transparent border-2 border-t-white/80 border-b-blue-900/40 border-x-white/20 rounded-full shadow-[inset_0_2px_4px_rgba(255,255,255,0.6),inset_0_-2px_4px_rgba(30,58,138,0.3),0_10px_30px_rgba(0,0,0,0.1)] w-auto backdrop-blur-none">
+<!-- Brand Logo -->
+
+<!-- Navigation Links -->
+<div class="hidden md:flex items-center gap-gutter h-full"><div class="flex items-center gap-4 h-full"><a class="text-primary font-medium text-body-sm" href="#">Ask</a><a class="text-slate-700 hover:text-primary transition-colors text-body-sm" href="#">Knowledge</a><a class="text-slate-700 hover:text-primary transition-colors text-body-sm" href="#">People</a></div></div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-stack-md text-primary dark:text-primary-fixed-dim"><div class="flex items-center gap-3"><button class="p-1.5 hover:bg-primary/5 rounded-full transition-colors text-slate-700 hover:text-primary"><span class="material-symbols-outlined text-[20px]">settings</span></button><div class="w-7 h-7 rounded-full bg-surface-variant overflow-hidden border border-outline-variant/30"><img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXv5oCFwm4cNeYpMk3Cp3nwAnYgC6wtbCZOu6GZS7YPZDOg91ijxUGxQ2jekcbmhw0_6SoLvyJGUXao9bAhgCNYqWTT3UfCM8YLcB_nqvwTFJsqW8OjfnFPagknyln98j3TzgE-ASRkd-N_pjYc-Y9y0abbJHTUiKUVoLaT63tAsCFxV9vEXPfXHTq5u1Y9ftZcV3etyZjA--XVvK_N2svb6m80S8cfLWDmm1QvrOEVk7CgdBI3qRlNg"></div></div></div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 pt-24 pb-margin-page px-margin-page md:px-margin-page lg:max-w-4xl lg:mx-auto w-full flex flex-col justify-center min-h-[calc(100vh-64px)] relative z-10">
+<!-- Welcome Area (Fades out when answering) -->
+<div class="text-center mb-stack-xl opacity-0 animate-spring-up" id="welcome-area">
+<h1 class="font-display-lg text-display-lg text-indigo-950 tracking-tight mb-stack-sm md:font-display-lg-mobile md:text-display-lg-mobile lg:font-display-lg lg:text-display-lg">
+                Ask your organization's knowledge.
+            </h1>
+<p class="font-body-md text-body-md text-slate-700 max-w-lg mx-auto">
+                Securely query policies, employee resources, and internal documentation.
+            </p>
+</div>
+<!-- AI Composer (The Core Component) -->
+<div class="relative w-full max-w-3xl mx-auto z-20 mb-stack-lg">
+<div class="rounded-2xl overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] group backdrop-blur-[100px] bg-white/5 border border-blue-400/30 border-t-white/60 shadow-[inset_1px_1px_0px_0px_rgba(254,240,138,0.4),0_20px_50px_rgba(0,0,0,0.05)] hover:border-blue-400/50 hover:scale-[1.01]" id="composer-container">
+<div class="liquid-border"></div>
+<div class="flex items-center px-gutter py-stack-md relative">
+<!-- Textarea auto-expands slightly -->
+<textarea class="w-full bg-transparent border-none focus:ring-0 resize-none font-body-md text-body-md text-indigo-950 placeholder:text-slate-500 min-h-[56px] py-3 caret-primary leading-relaxed outline-none" id="ai-input" onblur="document.getElementById('composer-container').classList.remove('composer-focus')" onfocus="document.getElementById('composer-container').classList.add('composer-focus')" placeholder="What would you like to know?" rows="1"></textarea>
+<!-- Send Action -->
+<button class="ml-stack-md w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-sm hover:scale-[1.02] transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-95 active:duration-100 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100 flex-shrink-0" id="send-btn">
+<span class="material-symbols-outlined font-medium text-lg" style="font-variation-settings: &quot;FILL&quot; 0;">arrow_upward</span>
+</button>
+</div>
+</div>
+<!-- Contextual Suggestions (Bento-style chips) -->
+<div class="flex flex-wrap gap-stack-sm justify-center mt-stack-md opacity-0 animate-spring-up stagger-1" id="suggestions">
+<button class="px-5 py-2.5 rounded-full text-slate-700 font-body-sm text-body-sm transition-[transform,background-color] duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.02] active:scale-95 active:duration-100 backdrop-blur-[100px] bg-white/5 border border-blue-400/30 border-t-white/60 shadow-[inset_1px_1px_0px_0px_rgba(254,240,138,0.4),0_20px_50px_rgba(0,0,0,0.05)] hover:border-blue-400/50 hover:bg-white/10" onclick="setInput('What is our leave policy?')">
+                    What is our leave policy?
+                </button>
+<button class="px-5 py-2.5 rounded-full text-slate-700 font-body-sm text-body-sm transition-[transform,background-color] duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.02] active:scale-95 active:duration-100 backdrop-blur-[100px] bg-white/5 border border-blue-400/30 border-t-white/60 shadow-[inset_1px_1px_0px_0px_rgba(254,240,138,0.4),0_20px_50px_rgba(0,0,0,0.05)] hover:border-blue-400/50 hover:bg-white/10" onclick="setInput('How do I request equipment?')">
+                    How do I request equipment?
+                </button>
+<button class="px-5 py-2.5 rounded-full text-slate-700 font-body-sm text-body-sm transition-[transform,background-color] duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.02] active:scale-95 active:duration-100 backdrop-blur-[100px] bg-white/5 border border-blue-400/30 border-t-white/60 shadow-[inset_1px_1px_0px_0px_rgba(254,240,138,0.4),0_20px_50px_rgba(0,0,0,0.05)] hover:border-blue-400/50 hover:bg-white/10" onclick="setInput('What are the latest security requirements?')">
+                    What are the latest security requirements?
+                </button>
+</div>
+</div>
+<!-- Answer Area (Hidden initially) -->
+<div class="hidden flex-col gap-stack-lg max-w-3xl mx-auto w-full pb-stack-xl" id="answer-area">
+<!-- User Query Echo -->
+<div class="flex justify-end opacity-0 animate-spring-up">
+<div class="glass-surface px-gutter py-stack-md rounded-2xl rounded-tr-sm max-w-[80%]">
+<p class="font-body-md text-body-md text-on-surface" id="user-echo"></p>
+</div>
+</div>
+<!-- AI Response -->
+<div class="flex gap-stack-md opacity-0 animate-spring-up stagger-1">
+<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-1 glass-surface">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: &quot;FILL&quot; 1;">auto_awesome</span>
+</div>
+<div class="flex-1 glass-surface rounded-2xl rounded-tl-sm p-gutter">
+<div class="font-body-md text-body-md text-on-surface leading-relaxed space-y-4">
+<p class="">Based on the current organization policies, employees are entitled to 20 days of paid time off (PTO) annually, accrued per pay period. Additionally, there are 10 paid company holidays.</p>
+<p class="">For medical or family emergencies, the company provides up to 12 weeks of unpaid leave in compliance with standard regulations, concurrent with any available sick leave.</p>
+</div>
+<!-- Sources Block -->
+<div class="mt-stack-lg border-t border-white/20 pt-stack-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-stack-sm block">Sources Analyzed</span>
+<div class="flex flex-wrap gap-stack-sm">
+<a class="flex items-center gap-2 px-3 py-1.5 rounded-md glass-surface hover:bg-white/60 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-[1.02] active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px] group-hover:text-primary transition-colors" style="font-variation-settings: &quot;FILL&quot; 0;">description</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant group-hover:text-primary transition-colors">Employee Handbook (Page 12)</span>
+</a>
+<a class="flex items-center gap-2 px-3 py-1.5 rounded-md glass-surface hover:bg-white/60 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-[1.02] active:scale-95 group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px] group-hover:text-primary transition-colors" style="font-variation-settings: &quot;FILL&quot; 0;">shield</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant group-hover:text-primary transition-colors">Security Policy (Updated Aug 2026)</span>
+</a>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-stack-sm mt-stack-md pt-stack-sm justify-end">
+<button class="p-1.5 rounded-full glass-surface text-on-surface-variant hover:bg-white/60 hover:text-primary transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-[1.05] active:scale-95" title="Copy Answer">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: &quot;FILL&quot; 0;">content_copy</span>
+</button>
+<button class="p-1.5 rounded-full glass-surface text-on-surface-variant hover:bg-white/60 hover:text-primary transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-[1.05] active:scale-95" title="Helpful">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: &quot;FILL&quot; 0;">thumb_up</span>
+</button>
+<button class="p-1.5 rounded-full glass-surface text-on-surface-variant hover:bg-white/60 hover:text-error transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:scale-[1.05] active:scale-95" title="Not Helpful">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: &quot;FILL&quot; 0;">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        const inputField = document.getElementById('ai-input');
+        const sendBtn = document.getElementById('send-btn');
+        const welcomeArea = document.getElementById('welcome-area');
+        const suggestions = document.getElementById('suggestions');
+        const answerArea = document.getElementById('answer-area');
+        const userEcho = document.getElementById('user-echo');
+
+        // Auto-expand textarea
+        inputField.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+            if (this.value.trim().length > 0) {
+                sendBtn.classList.remove('opacity-50');
+            } else {
+                sendBtn.classList.add('opacity-50');
+            }
+        });
+
+        function setInput(text) {
+            inputField.value = text;
+            inputField.focus();
+            inputField.dispatchEvent(new Event('input'));
+        }
+
+        // Simulate sending a message
+        function simulateSend() {
+            const query = inputField.value.trim();
+            if (!query) return;
+
+            // UI Transitions
+            welcomeArea.style.display = 'none';
+            suggestions.style.display = 'none';
+            
+            inputField.value = '';
+            inputField.style.height = 'auto';
+            inputField.blur();
+
+            userEcho.textContent = query;
+            answerArea.classList.remove('hidden');
+            answerArea.classList.add('flex');
+            
+            // Re-trigger animations by cloning and replacing (simple hack for demo)
+            const newAnswer = answerArea.cloneNode(true);
+            answerArea.parentNode.replaceChild(newAnswer, answerArea);
+            
+            // Re-bind (since we cloned)
+            document.getElementById('send-btn').addEventListener('click', simulateSend);
+            document.getElementById('ai-input').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    simulateSend();
+                }
+            });
+        }
+
+        sendBtn.addEventListener('click', simulateSend);
+        inputField.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                simulateSend();
+            }
+        });
+    </script>
+
+
+</body></html>

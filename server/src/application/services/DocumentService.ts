@@ -7,6 +7,7 @@ import { CreateDocumentDTO, UpdateDocumentDTO } from '../dtos/DocumentDTOs';
 import { NotFoundException } from '../../domain/exceptions/NotFoundException';
 import { ForbiddenException } from '../../domain/exceptions/ForbiddenException';
 import { DocumentAccessPolicy, AccessSubject } from '../../domain/security/DocumentAccessPolicy';
+import { QdrantVectorStoreProvider } from '../../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider';
 
 export class DocumentService {
   constructor(
@@ -22,7 +23,7 @@ export class DocumentService {
     return docs.filter((doc) => DocumentAccessPolicy.canAccess(requester, doc)).slice(0, take);
   }
 
-  async getDocumentById(id: string, requester: AccessSubject): Promise<Document> {
+  async getDocumentById(id: string, requester: AccessSubject): Promise<any> {
     const doc = await this.documentRepository.findByTenantAndId(id, requester.organizationId);
     if (!doc) throw new NotFoundException('Document', id);
     if (!DocumentAccessPolicy.canAccess(requester, doc)) {
@@ -33,13 +34,15 @@ export class DocumentService {
 
   async createDocument(requester: AccessSubject, data: CreateDocumentDTO): Promise<Document> {
     return await this.unitOfWork.execute(async (tx) => {
+      const docScope = data.scope || (data.visibility === 'PRIVATE' ? 'PERSONAL' : 'ORGANIZATION');
       const doc = await tx.document.create({
         data: {
           title: data.title,
           mimeType: data.mimeType,
           sizeBytes: data.sizeBytes,
           classification: data.classification || 'UNCLASSIFIED',
-          visibility: data.visibility || 'PRIVATE',
+          visibility: data.visibility || (docScope === 'PERSONAL' ? 'PRIVATE' : 'ORG_WIDE'),
+          scope: docScope,
           departmentId: data.departmentId ?? (requester.departments[0] || null),
           allowedRoles: data.allowedRoles ?? [],
           allowedUsers: data.allowedUsers ?? [],
@@ -81,6 +84,25 @@ export class DocumentService {
         data
       });
 
+      // Sync updated metadata/scope payload to Qdrant vector store
+      try {
+        const collectionName = `org_${doc.organizationId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
+        const qdrantProvider = new QdrantVectorStoreProvider();
+        await qdrantProvider.updatePayloadForDocument(collectionName, doc.id, {
+          scope: doc.scope,
+          visibility: doc.visibility,
+          classification: doc.classification,
+          allowedRoles: doc.allowedRoles,
+          deniedRoles: doc.deniedRoles,
+          allowedUsers: doc.allowedUsers,
+          deniedUsers: doc.deniedUsers,
+          allowedDepartments: doc.allowedDepartments,
+          deniedDepartments: doc.deniedDepartments,
+        });
+      } catch (qErr) {
+        console.warn(`[DocumentService] Qdrant payload sync warning for document ${doc.id}:`, qErr);
+      }
+
       await tx.auditLog.create({
         data: {
           action: 'UPDATE',
@@ -118,6 +140,32 @@ export class DocumentService {
       });
 
       await this.eventPublisher.publish('document.deleted', { documentId: id, organizationId: requester.organizationId });
+    });
+  }
+
+  async deleteAllDocuments(requester: AccessSubject): Promise<void> {
+    await this.unitOfWork.execute(async (tx) => {
+      const docs = await tx.document.findMany({
+        where: { organizationId: requester.organizationId }
+      });
+
+      for (const doc of docs) {
+        await tx.document.update({
+          where: { id: doc.id },
+          data: { deletedAt: new Date() }
+        });
+        await this.eventPublisher.publish('document.deleted', { documentId: doc.id, organizationId: requester.organizationId });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          action: 'DELETE',
+          organization: { connect: { id: requester.organizationId } },
+          actor: { connect: { id: requester.id } },
+          resourceId: requester.organizationId,
+          metadata: { deleteAll: true, count: docs.length }
+        }
+      });
     });
   }
 

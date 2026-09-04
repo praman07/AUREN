@@ -27,6 +27,7 @@ router.post('/upload', uploadMiddleware.single('file'), uploadControllerInstance
 router.get('/', documentControllerInstance.getDocuments);
 router.get('/:id', validateRequest(DocumentIdParamSchema), documentControllerInstance.getDocumentById);
 router.post('/', validateRequest(CreateDocumentSchema), documentControllerInstance.createDocument);
+router.delete('/', documentControllerInstance.deleteAllDocuments);
 router.patch('/:id', validateRequest(UpdateDocumentSchema), documentControllerInstance.updateDocument);
 router.delete('/:id', validateRequest(DocumentIdParamSchema), documentControllerInstance.deleteDocument);
 router.post('/:id/restore', validateRequest(DocumentIdParamSchema), documentControllerInstance.restoreDocument);

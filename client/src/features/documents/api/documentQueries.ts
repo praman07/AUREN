@@ -8,9 +8,13 @@ export interface DocumentOwner {
 }
 
 export interface DocumentJob {
+  id: string;
+  queueName: string;
   status: string;
   error?: string | null;
   createdAt: string;
+  completedAt?: string | null;
+  failedAt?: string | null;
 }
 
 export interface DocumentVersion {
@@ -24,6 +28,7 @@ export interface Document {
   title: string;
   classification: string;
   visibility: 'PUBLIC' | 'DEPARTMENT' | 'RESTRICTED' | 'PRIVATE' | string;
+  scope?: 'PERSONAL' | 'ORGANIZATION' | string;
   departmentId?: string | null;
   mimeType: string;
   sizeBytes: number;
@@ -43,6 +48,7 @@ export interface Document {
 export interface UpdateDocumentPermissionsPayload {
   visibility?: 'PUBLIC' | 'DEPARTMENT' | 'RESTRICTED' | 'PRIVATE' | string;
   classification?: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'RESTRICTED' | 'TOP_SECRET' | string;
+  scope?: 'PERSONAL' | 'ORGANIZATION' | string;
   departmentId?: string | null;
   allowedRoles?: string[];
   deniedRoles?: string[];
@@ -58,9 +64,15 @@ export function useDocuments() {
     queryKey: ['documents'],
     queryFn: async () => {
       const response = await api.get('/documents');
-      return response.data as Document[];
+      if (response && response.success && Array.isArray(response.data)) {
+        return response.data as Document[];
+      }
+      if (Array.isArray(response)) {
+        return response as Document[];
+      }
+      return (response?.data || []) as Document[];
     },
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
 }
 
@@ -71,10 +83,21 @@ export function useDocument(id: string) {
     queryFn: async () => {
       if (!id) return null;
       const response = await api.get(`/documents/${id}`);
-      return response.data as Document;
+      if (response && response.success && response.data) {
+        return response.data as Document;
+      }
+      return (response?.data || response) as Document;
     },
     enabled: !!id,
-    refetchInterval: 5000,
+    refetchInterval: (query) => {
+      const doc = query.state.data as Document | undefined;
+      const latestJob = doc?.jobs && doc.jobs.length > 0 ? doc.jobs[0] : null;
+      const status = latestJob?.status;
+      if (status === 'READY' || status === 'COMPLETED' || status === 'FAILED' || status === 'PARTIALLY_FAILED') {
+        return 30000;
+      }
+      return 2000;
+    },
   });
 }
 
@@ -83,11 +106,17 @@ export function useUploadDocument() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (args: File | { file: File; scope?: string }) => {
+      const file = args instanceof File ? args : args.file;
+      const scope = args instanceof File ? undefined : args.scope;
+
       const formData = new FormData();
       formData.append('file', file);
+      if (scope) {
+        formData.append('scope', scope);
+      }
       const response = await api.post('/documents/upload', formData);
-      return response.data;
+      return response.data || response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
@@ -118,6 +147,20 @@ export function useDeleteDocument() {
   return useMutation({
     mutationFn: async (id: string) => {
       await api.del(`/documents/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+}
+
+export function useDeleteAllDocuments() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      await api.del('/documents');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
