@@ -19,7 +19,22 @@ export interface ConnectorAccount {
     updatedAt?: string;
     hasStoredCredential?: boolean;
     errorCount?: number;
+    metadata?: Record<string, any> | null;
   } | null;
+}
+
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  fullName: string;
+  owner: {
+    login: string;
+    avatarUrl?: string;
+  };
+  private: boolean;
+  defaultBranch: string;
+  description: string | null;
+  htmlUrl: string;
 }
 
 export function useConnectors() {
@@ -49,6 +64,44 @@ export function useGetGoogleAuthUrl() {
     mutationFn: async () => {
       const response = await api.get('/connectors/google/auth-url');
       return response.data as { url: string };
+    },
+  });
+}
+
+export function useGetGitHubAuthUrl() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async () => {
+      const response = await api.get('/connectors/github/auth-url');
+      return response.data as { url: string };
+    },
+  });
+}
+
+export function useGetGitHubRepos(connectorId: string, enabled: boolean = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['github-repos', connectorId],
+    queryFn: async () => {
+      const response = await api.get(`/connectors/${connectorId}/github/repos`);
+      return (response.data || response) as GitHubRepo[];
+    },
+    enabled: Boolean(connectorId) && enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useSelectGitHubRepos() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ connectorId, repositories }: { connectorId: string; repositories: string[] }) => {
+      const response = await api.post(`/connectors/${connectorId}/github/select-repos`, { repositories });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['connectors'] });
     },
   });
 }
@@ -89,6 +142,22 @@ export function useSyncConnector() {
   });
 }
 
+export function useSyncGitHubConnector() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (connectorId: string) => {
+      const response = await api.post(`/connectors/${connectorId}/github/sync`, {});
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['connectors'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+}
+
 export function useDisconnectConnector() {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -101,6 +170,89 @@ export function useDisconnectConnector() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connectors'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+}
+
+export interface ConnectorPolicy {
+  id: string;
+  organizationId: string;
+  connectedAccountId: string;
+  resourcePattern: string;
+  allowedRoles: string[];
+  allowedDepartments: string[];
+  allowedUsers: string[];
+  deniedRoles: string[];
+  deniedDepartments: string[];
+  deniedUsers: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function useGetConnectorPolicies(connectorId: string, enabled: boolean = true) {
+  const api = useApi();
+  return useQuery({
+    queryKey: ['connector-policies', connectorId],
+    queryFn: async () => {
+      const response = await api.get(`/connectors/${connectorId}/policies`);
+      return (response.data || response) as ConnectorPolicy[];
+    },
+    enabled: Boolean(connectorId) && enabled,
+  });
+}
+
+export function useSaveConnectorPolicy() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      connectorId,
+      resourcePattern,
+      allowedRoles,
+      allowedDepartments,
+      allowedUsers,
+      deniedRoles,
+      deniedDepartments,
+      deniedUsers,
+    }: {
+      connectorId: string;
+      resourcePattern: string;
+      allowedRoles?: string[];
+      allowedDepartments?: string[];
+      allowedUsers?: string[];
+      deniedRoles?: string[];
+      deniedDepartments?: string[];
+      deniedUsers?: string[];
+    }) => {
+      const response = await api.post(`/connectors/${connectorId}/policies`, {
+        resourcePattern,
+        allowedRoles,
+        allowedDepartments,
+        allowedUsers,
+        deniedRoles,
+        deniedDepartments,
+        deniedUsers,
+      });
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['connector-policies', variables.connectorId] });
+    },
+  });
+}
+
+export function useDeleteConnectorPolicy() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ connectorId, policyId }: { connectorId: string; policyId: string }) => {
+      const response = await api.delete(`/connectors/${connectorId}/policies/${policyId}`);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['connector-policies', variables.connectorId] });
     },
   });
 }

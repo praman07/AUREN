@@ -1,11 +1,11 @@
 import { PrismaClient, DocumentVisibility, DocumentClassification, DocumentScope } from '@prisma/client';
 import crypto from 'crypto';
 import { PasswordService } from '../src/shared/security/password';
-import { OllamaEmbeddingProvider } from '../src/infrastructure/providers/adapters/embedding/OllamaEmbeddingProvider';
+import { LlamaCppEmbeddingProvider } from '../src/infrastructure/providers/adapters/embedding/LlamaCppEmbeddingProvider';
 import { QdrantVectorStoreProvider } from '../src/infrastructure/providers/adapters/vector/QdrantVectorStoreProvider';
 
 const prisma = new PrismaClient();
-const embeddingProvider = new OllamaEmbeddingProvider();
+const embeddingProvider = new LlamaCppEmbeddingProvider();
 const qdrantProvider = new QdrantVectorStoreProvider();
 
 const DEV_PASSWORD = 'NorthstarTest@2026!';

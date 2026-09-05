@@ -60,7 +60,13 @@ export class ConnectorService {
 
     try {
       // Never log the token; the connector only sees it in-memory.
-      const resources = await connector.fetchResources(accessToken, account.organizationId, account.userId || '');
+      const selectedRepos = (account.metadata as any)?.selectedRepos;
+      const resources = await connector.fetchResources(
+        accessToken, 
+        account.organizationId, 
+        account.userId || '',
+        { accountId: account.id, selectedRepos }
+      );
       result.resourcesFetched = resources.length;
 
       for (const resource of resources) {
@@ -134,15 +140,35 @@ export class ConnectorService {
         });
 
         if (existingVersion) {
+          // Fix 3: Check if existingVersion is fully processed and indexed
+          const totalChunks = await prisma.documentChunk.count({
+            where: { versionId: existingVersion.id }
+          });
+          const completedChunks = await prisma.documentChunk.count({
+            where: { versionId: existingVersion.id, indexingStatus: 'COMPLETED' }
+          });
+
+          if (totalChunks > 0 && totalChunks === completedChunks) {
+            // Fully indexed & completed -> SKIP
+            continue;
+          }
+
+          // Recovery: Re-trigger processing pipeline for existing incomplete or failed version
+          console.log(`[ConnectorService] Re-triggering processing for incomplete/failed version ${existingVersion.id} (doc: ${doc.id})`);
+          await this.orchestrator.handleEvent(PipelineEventType.DOCUMENT_UPLOADED, {
+            documentId: doc.id,
+            versionId: existingVersion.id,
+            organizationId: account.organizationId,
+          });
           continue;
         }
 
         // Write the raw text to the local storage provider and create a DocumentVersion.
         const versionId = crypto.randomUUID();
         const safeExternalId = resource.externalId.replace(/[^a-zA-Z0-9_-]/g, '_');
-        const s3Key = `connectors/${account.provider.toLowerCase()}/${account.id}/${safeExternalId}`;
+        const s3Key = `connectors/${account.provider.toLowerCase()}/${account.id}/${safeExternalId}.txt`;
 
-        await this.storageProvider.upload(Buffer.from(resource.content, 'utf8'), s3Key + '.txt');
+        await this.storageProvider.upload(Buffer.from(resource.content, 'utf8'), s3Key);
 
         await prisma.documentVersion.create({
           data: {
@@ -182,15 +208,14 @@ export class ConnectorService {
             data: { deletedAt: new Date() }
           });
 
-          // Purge Qdrant points if QdrantVectorStoreProvider is available
+          // Fix 1: Purge Qdrant points using sanitized collection name
+          const collectionName = `org_${account.organizationId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
           try {
             const { QdrantVectorStoreProvider } = await import('../../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider');
             const qdrant = new QdrantVectorStoreProvider();
-            // Delete points associated with this document ID in the org collection
-            const collectionName = `org_${account.organizationId}_docs`;
             await qdrant.deleteDocument(collectionName, existingDoc.id);
           } catch (qErr: any) {
-            console.warn(`[ConnectorService] Vector purge warning for doc ${existingDoc.id}:`, qErr.message);
+            console.error(`[ConnectorService] Vector purge failed for doc ${existingDoc.id} in org ${account.organizationId} (collection: ${collectionName}):`, qErr?.message || qErr);
           }
         }
       }

@@ -12,16 +12,22 @@ import {
   HardDrive,
   X,
   AlertTriangle,
-  Unplug
+  Unplug,
+  FolderGit2,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   useConnectors, 
   useConnectConnector, 
   useSyncConnector, 
+  useSyncGitHubConnector,
   useDisconnectConnector,
-  useGetGoogleAuthUrl
+  useGetGoogleAuthUrl,
+  useGetGitHubAuthUrl
 } from '../api/connectorQueries';
 import { useAuthStore } from '../../../core/auth/store/useAuthStore';
+import { GitHubRepoPickerModal } from './GitHubRepoPickerModal';
+import { ConnectorPolicyModal } from './ConnectorPolicyModal';
 
 const iconMap: Record<string, React.ElementType> = {
   GITHUB: GitBranch,
@@ -32,7 +38,7 @@ const iconMap: Record<string, React.ElementType> = {
 
 const providerDescriptions: Record<string, string> = {
   GOOGLE_DRIVE: 'Import and search documents, spreadsheets, and Google Docs from your Google Drive inside AUREN.',
-  GITHUB: 'Index public and private repositories, pull requests, and codebase documentation.',
+  GITHUB: 'Connect public and private GitHub repositories for automated Organization Knowledge indexing.',
   GMAIL: 'Ingest team email threads and attachments into Universal Knowledge Core.',
   NOTION: 'Sync workspace pages, databases, and internal wikis.',
   SLACK: 'Index channel conversations, decisions, and shared files.',
@@ -45,12 +51,24 @@ export const ConnectorsList: React.FC = () => {
 
   const { data: connectors, isLoading, isError, error } = useConnectors();
   const getGoogleAuthUrlMutation = useGetGoogleAuthUrl();
+  const getGitHubAuthUrlMutation = useGetGitHubAuthUrl();
   const connectMutation = useConnectConnector();
   const syncMutation = useSyncConnector();
+  const syncGitHubMutation = useSyncGitHubConnector();
   const disconnectMutation = useDisconnectConnector();
 
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Repository Picker Modal state
+  const [isRepoPickerOpen, setIsRepoPickerOpen] = useState(false);
+  const [repoPickerConnectorId, setRepoPickerConnectorId] = useState<string | null>(null);
+  const [initialSelectedRepos, setInitialSelectedRepos] = useState<string[]>([]);
+
+  // Connector Policy Access Control Modal state
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+  const [policyModalConnectorId, setPolicyModalConnectorId] = useState<string | null>(null);
+  const [policyModalRepos, setPolicyModalRepos] = useState<string[]>([]);
 
   // Handle OAuth Redirect URL Params
   useEffect(() => {
@@ -62,14 +80,20 @@ export const ConnectorsList: React.FC = () => {
         type: 'success',
         message: 'Google Drive connected successfully! Initial document sync is running in the background.',
       });
-      navigate('/settings', { replace: true });
+      navigate('/settings?tab=connectors', { replace: true });
+    } else if (connectedParam === 'GITHUB') {
+      setNotification({
+        type: 'success',
+        message: 'GitHub connected successfully! Click "Manage repositories" to select target repositories.',
+      });
+      navigate('/settings?tab=connectors', { replace: true });
     } else if (errorParam) {
       const formattedError = decodeURIComponent(errorParam).replace(/_/g, ' ');
       setNotification({
         type: 'error',
-        message: `Google Drive connection failed: ${formattedError}`,
+        message: `Connection failed: ${formattedError}`,
       });
-      navigate('/settings', { replace: true });
+      navigate('/settings?tab=connectors', { replace: true });
     }
   }, [searchParams, navigate]);
 
@@ -83,12 +107,31 @@ export const ConnectorsList: React.FC = () => {
           window.location.href = res.url;
           return;
         }
-        throw new Error('Failed to retrieve authorization URL.');
+        throw new Error('Failed to retrieve Google authorization URL.');
       } catch (e: any) {
         setConnectingProvider(null);
         setNotification({
           type: 'error',
           message: e?.message || 'Could not initiate Google authentication.',
+        });
+      }
+      return;
+    }
+
+    if (provider === 'GITHUB') {
+      try {
+        setConnectingProvider('GITHUB');
+        const res = await getGitHubAuthUrlMutation.mutateAsync();
+        if (res?.url) {
+          window.location.href = res.url;
+          return;
+        }
+        throw new Error('Failed to retrieve GitHub authorization URL.');
+      } catch (e: any) {
+        setConnectingProvider(null);
+        setNotification({
+          type: 'error',
+          message: e?.message || 'Could not initiate GitHub authentication.',
         });
       }
       return;
@@ -139,6 +182,26 @@ export const ConnectorsList: React.FC = () => {
       setNotification({
         type: 'error',
         message: e?.message || 'Failed to trigger manual sync.',
+      });
+    }
+  };
+
+  const handleGitHubSync = async (connectorId: string) => {
+    try {
+      const res = await syncGitHubMutation.mutateAsync(connectorId);
+      const resData = res?.data?.result || res?.data;
+      const fetched = resData?.resourcesFetched ?? 0;
+      const upserted = resData?.documentsUpserted ?? 0;
+      const versions = resData?.versionsCreated ?? 0;
+
+      setNotification({
+        type: 'success',
+        message: `GitHub sync started. Fetched ${fetched} resource(s), upserted ${upserted} document(s) (${versions} new version(s)). Background processing queued.`,
+      });
+    } catch (e: any) {
+      setNotification({
+        type: 'error',
+        message: e?.message || 'Failed to trigger GitHub sync.',
       });
     }
   };
@@ -207,9 +270,13 @@ export const ConnectorsList: React.FC = () => {
           const isConnected = connector.configured && Boolean(connector.account);
           const syncStatus = connector.account?.lastSyncStatus;
           const isSyncing = syncStatus === 'PENDING' || syncStatus === 'SYNCING' || (syncMutation.isPending && syncMutation.variables === connector.account?.id);
+          const isThisGitHub = connector.provider === 'GITHUB';
+          const isSyncingThis = isSyncing || (isThisGitHub && syncGitHubMutation.isPending && syncGitHubMutation.variables === connector.account?.id);
           const hasError = syncStatus === 'FAILED' || Boolean(connector.account?.lastError);
           const isConnectingThis = connectingProvider === connector.provider;
           const description = providerDescriptions[connector.provider] || 'Connect external platform data to AUREN Knowledge Core.';
+          const githubLogin = connector.account?.metadata?.githubLogin;
+          const selectedRepos = connector.account?.metadata?.selectedRepos || [];
 
           return (
             <div 
@@ -232,7 +299,7 @@ export const ConnectorsList: React.FC = () => {
                       <span className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
                         <Loader2 className="w-3 h-3 animate-spin" /> Connecting...
                       </span>
-                    ) : isSyncing ? (
+                    ) : isSyncingThis ? (
                       <span className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
                         <RefreshCw className="w-3 h-3 animate-spin" /> Syncing...
                       </span>
@@ -258,9 +325,12 @@ export const ConnectorsList: React.FC = () => {
                   {/* ACCOUNT & SYNC METADATA */}
                   {isConnected && connector.account && (
                     <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 font-mono pt-1 flex-wrap">
-                      {connector.account.accountEmail && (
-                        <span className="text-slate-600 dark:text-slate-300 font-medium">
-                          Account: {connector.account.accountEmail}
+                      <span className="text-slate-600 dark:text-slate-300 font-medium">
+                        Connected as {githubLogin ? `@${githubLogin}` : connector.account.accountEmail || 'Connected'}
+                      </span>
+                      {selectedRepos.length > 0 && (
+                        <span className="text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800/60">
+                          {selectedRepos.length} repo(s) selected
                         </span>
                       )}
                       {connector.account.lastSyncAt && (
@@ -282,17 +352,54 @@ export const ConnectorsList: React.FC = () => {
 
               {/* ACTION BUTTONS */}
               {isSuperAdmin ? (
-                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                <div className="flex items-center gap-2 shrink-0 self-end md:self-center flex-wrap">
                   {isConnected && connector.account?.id && (
                     <>
+                      {connector.provider === 'GITHUB' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setRepoPickerConnectorId(connector.account!.id);
+                              setInitialSelectedRepos(connector.account?.metadata?.selectedRepos || []);
+                              setIsRepoPickerOpen(true);
+                            }}
+                            className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5"
+                            title="Select GitHub Repositories"
+                          >
+                            <FolderGit2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                            <span>Manage repositories</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setPolicyModalConnectorId(connector.account!.id);
+                              setPolicyModalRepos(connector.account?.metadata?.selectedRepos || []);
+                              setIsPolicyModalOpen(true);
+                            }}
+                            className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5"
+                            title="Configure Connector Access Policies"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                            <span>Manage access</span>
+                          </button>
+                        </>
+                      )}
+
                       <button
-                        onClick={() => handleSync(connector.account!.id)}
-                        disabled={isSyncing}
+                        onClick={() => isThisGitHub ? handleGitHubSync(connector.account!.id) : handleSync(connector.account!.id)}
+                        disabled={isSyncingThis}
                         className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5 disabled:opacity-50"
-                        title="Trigger Instant Knowledge Sync"
+                        title={isThisGitHub ? "Trigger GitHub Repository Knowledge Sync" : "Trigger Instant Knowledge Sync"}
                       >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-600' : ''}`} />
-                        <span>{isSyncing ? 'Syncing...' : 'Sync now'}</span>
+                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncingThis ? 'animate-spin text-blue-600' : ''}`} />
+                        <span>
+                          {isSyncingThis 
+                            ? 'Syncing...' 
+                            : isThisGitHub 
+                              ? 'Sync GitHub' 
+                              : 'Sync now'
+                          }
+                        </span>
                       </button>
 
                       <button
@@ -345,6 +452,29 @@ export const ConnectorsList: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* GitHub Repository Selection Modal */}
+      {repoPickerConnectorId && (
+        <GitHubRepoPickerModal
+          connectorId={repoPickerConnectorId}
+          isOpen={isRepoPickerOpen}
+          onClose={() => setIsRepoPickerOpen(false)}
+          initialSelectedRepos={initialSelectedRepos}
+          onSuccessNotification={(msg) => setNotification({ type: 'success', message: msg })}
+        />
+      )}
+
+      {/* Connector Policy Access Control Modal */}
+      {policyModalConnectorId && (
+        <ConnectorPolicyModal
+          connectorId={policyModalConnectorId}
+          isOpen={isPolicyModalOpen}
+          onClose={() => setIsPolicyModalOpen(false)}
+          selectedRepos={policyModalRepos}
+          onSuccessNotification={(msg) => setNotification({ type: 'success', message: msg })}
+        />
+      )}
     </div>
   );
 };
+

@@ -23,6 +23,16 @@ export const ConnectorIdParamSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
 });
 
+export const SelectGitHubReposSchema = z.object({
+  params: z.object({ id: z.string().uuid() }),
+  body: z.object({
+    repositories: z
+      .array(z.string().min(3).max(200))
+      .min(0)
+      .max(50, 'Cannot select more than 50 repositories at once'),
+  }),
+});
+
 /** Secret-free connector view — tokens are NEVER included here. */
 export const toConnectorDto = (account: any) => {
   const { accessToken, refreshToken, tokenIv, ...safe } = account;

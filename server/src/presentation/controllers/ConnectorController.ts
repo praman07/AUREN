@@ -38,11 +38,26 @@ export class ConnectorController {
     return account;
   }
 
-  private async audit(req: Request, action: string, resourceId: string | null, details: any) {
+  private async audit(
+    req: Request, 
+    action: string, 
+    resourceId: string | null, 
+    details: any, 
+    orgIdOverride?: string, 
+    actorIdOverride?: string
+  ) {
+    const organizationId = req.user?.organizationId || orgIdOverride || details?.organizationId;
+    const actorId = req.user?.id || actorIdOverride || details?.userId || null;
+
+    if (!organizationId) {
+      console.warn('[ConnectorController] Audit log skipped: missing organizationId');
+      return;
+    }
+
     await prisma.auditLog.create({
       data: {
-        organizationId: req.user!.organizationId,
-        actorId: req.user!.id,
+        organizationId,
+        actorId,
         action: action as any,
         resourceId: resourceId || undefined,
         ipAddress: req.ip || null,
@@ -294,10 +309,415 @@ export class ConnectorController {
       });
 
       // Redirect back to frontend settings connectors page
-      res.redirect(`${frontendUrl}/settings/connectors?connected=GOOGLE_DRIVE`);
+      res.redirect(`${frontendUrl}/settings?tab=connectors&connected=GOOGLE_DRIVE`);
     } catch (error: any) {
       console.error('ConnectorController: Google OAuth callback error:', error);
-      res.redirect(`${frontendUrl}/settings/connectors?error=${encodeURIComponent(error?.message || 'OAuth authentication failed')}`);
+      res.redirect(`${frontendUrl}/settings?tab=connectors&error=${encodeURIComponent(error?.message || 'OAuth authentication failed')}`);
+    }
+  };
+
+  public getGitHubAuthUrl = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { GitHubOAuthService } = await import('../../infrastructure/connectors/GitHubOAuthService');
+      const oauthService = new GitHubOAuthService();
+      
+      const state = oauthService.generateState(req.user!.organizationId, req.user!.id);
+      const url = oauthService.getAuthUrl(state);
+
+      res.status(200).json({ success: true, data: { url } });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public handleGitHubCallback = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:5174';
+
+    try {
+      const { code, state, error: oauthError } = req.query;
+
+      if (oauthError) {
+        res.redirect(`${frontendUrl}/settings?tab=connectors&error=${encodeURIComponent(String(oauthError))}`);
+        return;
+      }
+
+      if (!code || typeof code !== 'string') {
+        res.redirect(`${frontendUrl}/settings?tab=connectors&error=missing_authorization_code`);
+        return;
+      }
+
+      if (!state || typeof state !== 'string') {
+        res.redirect(`${frontendUrl}/settings?tab=connectors&error=missing_oauth_state`);
+        return;
+      }
+
+      const { GitHubOAuthService } = await import('../../infrastructure/connectors/GitHubOAuthService');
+      const oauthService = new GitHubOAuthService();
+
+      let statePayload;
+      try {
+        statePayload = oauthService.verifyState(state);
+      } catch (stateErr: any) {
+        console.warn('ConnectorController: GitHub OAuth state verification failed:', stateErr.message);
+        res.redirect(`${frontendUrl}/settings?tab=connectors&error=${encodeURIComponent('invalid_oauth_state')}`);
+        return;
+      }
+
+      const { organizationId, userId } = statePayload;
+
+      const result = await oauthService.exchangeCodeForTokens(code);
+
+      const encryptedAccess = EncryptionService.encrypt(result.accessToken);
+      const accountEmail = result.githubEmail || `${result.githubLogin}@github.com`;
+      const accountId = `github_${result.githubAccountId}`;
+
+      const account = await prisma.connectedAccount.upsert({
+        where: { provider_accountId: { provider: 'GITHUB', accountId } },
+        update: {
+          organizationId,
+          userId,
+          accountEmail,
+          accessToken: encryptedAccess.encrypted,
+          tokenIv: encryptedAccess.iv,
+          scopes: result.scope || 'repo,read:user,user:email',
+          status: 'ACTIVE',
+          lastSyncStatus: null,
+          lastError: null,
+          lastErrorAt: null,
+        },
+        create: {
+          organizationId,
+          userId,
+          provider: 'GITHUB',
+          accountId,
+          accountEmail,
+          accessToken: encryptedAccess.encrypted,
+          tokenIv: encryptedAccess.iv,
+          scopes: result.scope || 'repo,read:user,user:email',
+          status: 'ACTIVE',
+        },
+      });
+
+      await this.audit(
+        req, 
+        'CREATE', 
+        account.id, 
+        {
+          action: 'CONNECTOR_CONNECTED',
+          provider: 'GITHUB',
+          githubLogin: result.githubLogin,
+        },
+        organizationId,
+        userId
+      );
+
+      res.redirect(`${frontendUrl}/settings?tab=connectors&connected=GITHUB`);
+    } catch (error: any) {
+      console.error('ConnectorController: GitHub OAuth callback error:', error);
+      const safeErrorMessage = error?.message?.substring(0, 200) || 'OAuth authentication failed';
+      res.redirect(`${frontendUrl}/settings?tab=connectors&error=${encodeURIComponent(safeErrorMessage)}`);
+    }
+  };
+
+  public listGitHubRepos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const account = await this.assertAccess(req, this.paramId(req));
+
+      if (account.provider !== 'GITHUB') {
+        const err: any = new Error(`Provider mismatch: account ${account.id} belongs to ${account.provider}, not GITHUB`);
+        err.statusCode = 400;
+        throw err;
+      }
+
+      if (!account.accessToken || !account.tokenIv) {
+        const err: any = new Error('Connected account missing credentials. Please reconnect.');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const accessToken = EncryptionService.decrypt(account.accessToken, account.tokenIv);
+      const { GitHubOAuthService } = await import('../../infrastructure/connectors/GitHubOAuthService');
+      const oauthService = new GitHubOAuthService();
+
+      const repos = await oauthService.fetchAccessibleRepositories(accessToken);
+
+      res.status(200).json({
+        success: true,
+        data: repos,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public selectGitHubRepos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const account = await this.assertAccess(req, this.paramId(req));
+
+      if (account.provider !== 'GITHUB') {
+        const err: any = new Error(`Provider mismatch: account ${account.id} belongs to ${account.provider}, not GITHUB`);
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const { repositories } = req.body;
+      if (!Array.isArray(repositories)) {
+        const err: any = new Error('Repositories must be an array of strings');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      // Normalization & Validation of Repository Identifiers
+      const repoRegex = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;
+      const normalizedRepos: string[] = [];
+
+      for (const r of repositories) {
+        if (typeof r !== 'string') continue;
+        const trimmed = r.trim();
+        if (!repoRegex.test(trimmed)) {
+          const err: any = new Error(`Invalid repository identifier format: "${r}". Must be "owner/repository".`);
+          err.statusCode = 400;
+          throw err;
+        }
+        normalizedRepos.push(trimmed);
+      }
+
+      // De-duplicate
+      const uniqueRepos = Array.from(new Set(normalizedRepos));
+
+      if (uniqueRepos.length > 50) {
+        const err: any = new Error('Cannot select more than 50 repositories at once');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      // Security check: Verify selected repositories actually belong to the connected GitHub user's accessible set
+      if (!account.accessToken || !account.tokenIv) {
+        const err: any = new Error('Connected account missing credentials. Please reconnect.');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const accessToken = EncryptionService.decrypt(account.accessToken, account.tokenIv);
+      const { GitHubOAuthService } = await import('../../infrastructure/connectors/GitHubOAuthService');
+      const oauthService = new GitHubOAuthService();
+
+      const accessibleRepos = await oauthService.fetchAccessibleRepositories(accessToken);
+      const accessibleSet = new Set(accessibleRepos.map((repo) => repo.fullName.toLowerCase()));
+
+      for (const repoName of uniqueRepos) {
+        if (!accessibleSet.has(repoName.toLowerCase())) {
+          const err: any = new Error(`Repository "${repoName}" is not accessible to the connected GitHub account.`);
+          err.statusCode = 403;
+          throw err;
+        }
+      }
+
+      // Update metadata on ConnectedAccount
+      const currentMeta = (account.metadata as Record<string, any>) || {};
+      const updatedMeta = {
+        ...currentMeta,
+        selectedRepos: uniqueRepos,
+        lastSelectedAt: new Date().toISOString(),
+      };
+
+      const updatedAccount = await prisma.connectedAccount.update({
+        where: { id: account.id },
+        data: { metadata: updatedMeta },
+      });
+
+      await this.audit(req, 'UPDATE', account.id, {
+        action: 'GITHUB_REPOS_SELECTED',
+        selectedRepos: uniqueRepos,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          accountId: updatedAccount.id,
+          provider: updatedAccount.provider,
+          selectedRepos: uniqueRepos,
+          updatedAt: updatedAccount.updatedAt,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public syncGitHub = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const account = await this.assertAccess(req, this.paramId(req));
+
+      if (account.provider !== 'GITHUB') {
+        const err: any = new Error(`Provider mismatch: account ${account.id} belongs to ${account.provider}, not GITHUB`);
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const selectedRepos = (account.metadata as any)?.selectedRepos;
+      if (!Array.isArray(selectedRepos) || selectedRepos.length === 0) {
+        const err: any = new Error('No repositories selected for GitHub synchronization. Please select repositories first.');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const result = await this.connectorService.syncConnectedAccount(account.id, 'GITHUB');
+
+      await this.audit(req, 'UPDATE', account.id, {
+        action: 'GITHUB_CONNECTOR_SYNC_REQUESTED',
+        selectedRepos,
+        ...result,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          syncId: `sync_gh_${Date.now()}`,
+          status: 'COMPLETED',
+          accountId: account.id,
+          selectedRepos,
+          result,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  private isOrgAdmin(req: Request): boolean {
+    return Boolean(
+      req.user?.isSuperAdmin || 
+      req.user?.role === 'ADMIN' || 
+      req.user?.roles?.includes('ADMIN') || 
+      req.user?.roles?.includes('OrgAdmin')
+    );
+  }
+
+  public getPolicies = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const account = await this.assertAccess(req, this.paramId(req));
+      const policies = await prisma.connectorPolicy.findMany({
+        where: {
+          organizationId: req.user!.organizationId,
+          connectedAccountId: account.id,
+        },
+        orderBy: { resourcePattern: 'asc' },
+      });
+
+      res.status(200).json({ success: true, data: policies });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public savePolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!this.isOrgAdmin(req)) {
+        const err: any = new Error('Forbidden: Only organization administrators can manage connector policies');
+        err.statusCode = 403;
+        throw err;
+      }
+
+      const account = await this.assertAccess(req, this.paramId(req));
+      const { 
+        resourcePattern, 
+        allowedRoles = [], 
+        allowedDepartments = [], 
+        allowedUsers = [], 
+        deniedRoles = [], 
+        deniedDepartments = [], 
+        deniedUsers = [] 
+      } = req.body;
+
+      if (!resourcePattern || typeof resourcePattern !== 'string' || !resourcePattern.trim()) {
+        const err: any = new Error('Resource pattern is required (e.g. "owner/repo")');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const normalizedPattern = resourcePattern.trim().toLowerCase();
+
+      const policy = await prisma.connectorPolicy.upsert({
+        where: {
+          connectedAccountId_resourcePattern: {
+            connectedAccountId: account.id,
+            resourcePattern: normalizedPattern,
+          },
+        },
+        update: {
+          allowedRoles: Array.isArray(allowedRoles) ? allowedRoles : [],
+          allowedDepartments: Array.isArray(allowedDepartments) ? allowedDepartments : [],
+          allowedUsers: Array.isArray(allowedUsers) ? allowedUsers : [],
+          deniedRoles: Array.isArray(deniedRoles) ? deniedRoles : [],
+          deniedDepartments: Array.isArray(deniedDepartments) ? deniedDepartments : [],
+          deniedUsers: Array.isArray(deniedUsers) ? deniedUsers : [],
+        },
+        create: {
+          organizationId: req.user!.organizationId,
+          connectedAccountId: account.id,
+          resourcePattern: normalizedPattern,
+          allowedRoles: Array.isArray(allowedRoles) ? allowedRoles : [],
+          allowedDepartments: Array.isArray(allowedDepartments) ? allowedDepartments : [],
+          allowedUsers: Array.isArray(allowedUsers) ? allowedUsers : [],
+          deniedRoles: Array.isArray(deniedRoles) ? deniedRoles : [],
+          deniedDepartments: Array.isArray(deniedDepartments) ? deniedDepartments : [],
+          deniedUsers: Array.isArray(deniedUsers) ? deniedUsers : [],
+        },
+      });
+
+      await this.audit(req, 'PERMISSION_GRANT', policy.id, {
+        action: 'CONNECTOR_POLICY_UPDATED',
+        provider: account.provider,
+        resourcePattern: normalizedPattern,
+        allowedRoles: policy.allowedRoles,
+        deniedRoles: policy.deniedRoles,
+        allowedUsers: policy.allowedUsers,
+        deniedUsers: policy.deniedUsers,
+      });
+
+      res.status(200).json({ success: true, data: policy });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public deletePolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!this.isOrgAdmin(req)) {
+        const err: any = new Error('Forbidden: Only organization administrators can delete connector policies');
+        err.statusCode = 403;
+        throw err;
+      }
+
+      const account = await this.assertAccess(req, this.paramId(req));
+      const policyId = Array.isArray(req.params.policyId) ? req.params.policyId[0] : req.params.policyId;
+
+      const policy = await prisma.connectorPolicy.findFirst({
+        where: {
+          id: policyId as string,
+          connectedAccountId: account.id,
+          organizationId: req.user!.organizationId,
+        },
+      });
+
+      if (!policy) {
+        const err: any = new Error('Connector policy not found');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      await prisma.connectorPolicy.delete({ where: { id: policy.id } });
+
+      await this.audit(req, 'PERMISSION_REVOKE', policy.id, {
+        action: 'CONNECTOR_POLICY_DELETED',
+        provider: account.provider,
+        resourcePattern: policy.resourcePattern,
+      });
+
+      res.status(200).json({ success: true, message: 'Connector policy deleted successfully' });
+    } catch (error) {
+      next(error);
     }
   };
 }
