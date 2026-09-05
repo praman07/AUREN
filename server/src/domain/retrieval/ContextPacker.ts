@@ -78,6 +78,12 @@ export class ContextPacker {
       return scoreB - scoreA;
     });
 
+    const topScore = sortedCandidates[0]?.metadata?.score ?? 0;
+    // Adaptive relevance threshold: chunks must retain at least 80% of top candidate's score (min baseline 0.40) to be packed
+    const minRelativeScoreRatio = 0.80;
+    const minAbsoluteScore = 0.25;
+    const minAllowedScore = topScore > 0 ? Math.max(minAbsoluteScore, topScore * minRelativeScoreRatio) : 0;
+
     const packedChunks: Document[] = [];
     const droppedChunks: Document[] = [];
     let currentTokensUsed = 0;
@@ -85,6 +91,14 @@ export class ContextPacker {
 
     for (let i = 0; i < sortedCandidates.length; i++) {
       const chunk = sortedCandidates[i];
+      const score = chunk.metadata?.score ?? 0;
+
+      // Filter out low-value tail chunks that fall below the adaptive relevance threshold
+      if (topScore > 0 && score < minAllowedScore && packedChunks.length >= 1) {
+        droppedChunks.push(chunk);
+        continue;
+      }
+
       const chunkFormatted = ContextPacker.formatChunk(chunk, packedChunks.length);
       const chunkTokens = ContextPacker.estimateTokens(chunkFormatted);
 

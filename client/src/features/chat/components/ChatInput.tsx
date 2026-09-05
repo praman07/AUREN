@@ -148,7 +148,7 @@ export const ChatInput: React.FC = () => {
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept=".pdf,.txt,.docx,.csv,.md"
+        accept=".pdf,.txt,.docx,.csv,.md,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff,.svg,image/*"
       />
 
       {/* AI Composer Field with Light Mode Liquid Glass */}

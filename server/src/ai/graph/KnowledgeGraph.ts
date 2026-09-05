@@ -28,7 +28,7 @@ export interface GraphCallbacks {
 
 const GraphAnnotation = Annotation.Root({
   messages: Annotation<any[]>({
-    reducer: (x, y) => (y ? x.concat(y) : x),
+    reducer: (x, y) => y ?? x,
     default: () => [],
   }),
   userQuery: Annotation<string>({
@@ -68,15 +68,15 @@ const GraphAnnotation = Annotation.Root({
     default: () => 1.0,
   }),
   internalDocs: Annotation<any[]>({
-    reducer: (x, y) => (y ? x.concat(y) : x),
+    reducer: (x, y) => y ?? x,
     default: () => [],
   }),
   catalogDocs: Annotation<any[]>({
-    reducer: (x, y) => (y ? x.concat(y) : x),
+    reducer: (x, y) => y ?? x,
     default: () => [],
   }),
   webResults: Annotation<any[]>({
-    reducer: (x, y) => (y ? x.concat(y) : x),
+    reducer: (x, y) => y ?? x,
     default: () => [],
   }),
   userMemories: Annotation<any[]>({
@@ -96,7 +96,7 @@ const GraphAnnotation = Annotation.Root({
     default: () => undefined,
   }),
   citations: Annotation<SourceCitation[]>({
-    reducer: (x, y) => (y ? x.concat(y) : x),
+    reducer: (x, y) => y ?? x,
     default: () => [],
   }),
   finalAnswer: Annotation<string>({
@@ -156,13 +156,12 @@ const GraphAnnotation = Annotation.Root({
 export function isClarificationResponse(userQuery: string, messages: any[]): { isClarification: boolean; originalUserQuery?: string } {
   if (!messages || messages.length === 0) return { isClarification: false };
 
-  // If the last message in messages has the same content as userQuery, look before it
   const isLastMsgCurrentQuery = String(messages[messages.length - 1].content || '') === userQuery;
   const history = isLastMsgCurrentQuery ? messages.slice(0, -1) : messages;
 
   if (history.length === 0) return { isClarification: false };
 
-  // 1. Look for the last AI/Assistant message in history
+  // Look for the immediately preceding AI/Assistant message in history
   let lastAiMsgIndex = -1;
   for (let i = history.length - 1; i >= 0; i--) {
     const m = history[i];
@@ -174,12 +173,16 @@ export function isClarificationResponse(userQuery: string, messages: any[]): { i
   }
 
   if (lastAiMsgIndex !== -1) {
-    const aiMsgContent = String(history[lastAiMsgIndex].content || '');
-    const isClarificationQuestion = /\b(clarify|specify|which|which one|do you mean|referring to|options|please choose|select|company|sector|timeframe|date|interpretation)\b/i.test(aiMsgContent)
-      || aiMsgContent.includes('?') 
-      || (history[lastAiMsgIndex] as any).isAmbiguous === true;
+    // ONLY treat as clarification if the immediately previous AI turn explicitly emitted a clarification request
+    const lastAiMsg = history[lastAiMsgIndex] as any;
+    const aiMsgContent = String(lastAiMsg.content || '');
 
-    if (isClarificationQuestion) {
+    const isExplicitClarification = lastAiMsg.isAmbiguous === true ||
+      lastAiMsg.metadata?.isAmbiguous === true ||
+      (Array.isArray(lastAiMsg.metadata?.clarificationOptions) && lastAiMsg.metadata.clarificationOptions.length > 0) ||
+      /\b(please select one of the options|select an option below|please clarify whether|which of the following options|choose one of the following)\b/i.test(aiMsgContent);
+
+    if (isExplicitClarification) {
       let originalUserQuery = '';
       for (let j = lastAiMsgIndex - 1; j >= 0; j--) {
         const m = history[j];
@@ -192,22 +195,6 @@ export function isClarificationResponse(userQuery: string, messages: any[]): { i
 
       if (originalUserQuery) {
         return { isClarification: true, originalUserQuery };
-      }
-    }
-  }
-
-  // 2. Fallback: If history ends with a human message (or only has human messages)
-  // and the current userQuery is a short selection (<= 8 words) following an ambiguous query
-  const previousUserMsg = history[history.length - 1];
-  if (previousUserMsg) {
-    const role = (previousUserMsg as any).role || (previousUserMsg._getType ? previousUserMsg._getType() : '');
-    if (role === 'user' || role === 'human' || previousUserMsg instanceof HumanMessage) {
-      const prevContent = String(previousUserMsg.content || '');
-      const currentWords = userQuery.trim().split(/\s+/).filter(Boolean);
-      if (currentWords.length <= 8 && prevContent.length > 10) {
-        if (prevContent !== userQuery) {
-          return { isClarification: true, originalUserQuery: prevContent };
-        }
       }
     }
   }
@@ -447,7 +434,7 @@ export async function classifySearchNecessity(state: AURENGraphState): Promise<{
   // 2. LLM fallback classifier for general query search/RAG necessity
   console.log(`[Search Necessity Classifier] 🤖 Running LLM fallback classifier for query: "${query}"`);
   try {
-    const llm = getOllamaChatModel({
+    const llm = aiGateway.getChatModel({
       modelName: 'FAST', // Use fast model
       numPredict: 1024,
       temperature: 0.0
@@ -611,7 +598,7 @@ Examples:
       }
 
       // Elliptical follow-up detected! Resolve context using LLM with structured output.
-      const llm = getOllamaChatModel({
+      const llm = aiGateway.getChatModel({
         modelName: state.executionMode,
         numPredict: 120,
         temperature: 0.0
@@ -759,8 +746,9 @@ Current User Query: "${rawQuery}"`;
 
       const queryLower = state.userQuery.toLowerCase().trim();
 
-      // Rule 0: First-Class Identity / Self-Query Intent
+      // Rule 0: First-Class Identity / Self-Query / System Model Query Intent
       const identityPattern = /\b(who\s+am\s+i|what'?s\s+my\s+name|what\s+is\s+my\s+name|who\s+am\s+i\s+logged\s+in\s+as|who\s+is\s+my\s+account|what\s+account\s+am\s+i\s+using|tell\s+me\s+about\s+myself|who\s+i\s+am|my\s+profile|my\s+identity|who\s+am\s+i\s+in\s+this\s+system)\b/i;
+      const systemModelIdentityPattern = /\b(what|which)\s+(model|ai|llm|runtime|version|provider|architecture)\s+(are\s+you|is\s+this|do\s+you\s+use|powers\s+you|running|are\s+you\s+using)\b|\b(what\s+model\s+are\s+you|which\s+model\s+are\s+you|what\s+model\s+do\s+you\s+use|what\s+runtime\s+are\s+you\s+using)\b/i;
 
       // Rule 0.5: Document Catalog / Inventory Browse Intent
       const isContentQuery = /\b(what does|what is in|explain|details of|content of|summarize|read|describe|quote|section|paragraph|chapter)\b/i.test(queryLower);
@@ -777,7 +765,7 @@ Current User Query: "${rawQuery}"`;
       let intent: IntentCategory = 'CASUAL';
       let confidence = 0.95;
 
-      if (identityPattern.test(queryLower)) {
+      if (identityPattern.test(queryLower) || systemModelIdentityPattern.test(queryLower)) {
         intent = 'IDENTITY';
         confidence = 1.0;
       } else if (!isContentQuery && (catalogPattern.test(queryLower) || catalogQueryPattern.test(queryLower) || catalogNounPattern.test(queryLower) || catalogNounPattern2.test(queryLower))) {
@@ -805,7 +793,11 @@ Current User Query: "${rawQuery}"`;
       } else {
         // Keyword indicators for Web and Internal - Refined to prevent false positives in FAST mode
         const webPattern = /\b(breaking news|latest news|news today|current weather|weather today|weather in|temperature in|forecast for)\b/i;
-        const internalPattern = /\b(uploaded|pdf|docx?|xlsx?|pptx?|file|files|document|documents|doc|docs|documentation|handbook|sop|knowledge base|indexed|leave policy|resume|resumes|cv|cvs)\b/i;
+        const internalKeywordPattern = /\b(uploaded|pdf|docx?|xlsx?|pptx?|file|files|document|documents|doc|docs|documentation|handbook|sop|knowledge base|indexed|leave policy|resume|resumes|cv|cvs)\b/i;
+        const domainQueryPattern = /\b(our|my project|the project|project|architecture|policy|policies|requirements?|approval|workflow|deployment|security|infrastructure|system|team|repository|module|spec|standard|guideline|contract|onboarding|procedure|roadmap|feature|feature spec)\b/i;
+
+        const isGenericCsConcept = /\b(recursion|http|https|database|sql|rest api|graphql|html|css|javascript|typescript|python|java|c\+\+|git|docker|kubernetes|binary tree|algorithm|data structure|object oriented|polymorphism|inheritance|closure|promise|async|await)\b/i.test(queryLower);
+        const isGenericCodeRequest = /\b(write|create|implement|build|generate)\s+(a|an|some)?\s+.*(function|script|code|program|class|algorithm|component)\b/i.test(queryLower);
 
         const isRateOrPrice = /\b(current price|live price|today's price|today price|exchange rate|stock price|repo rate|current rate|live rate|today's rate|latest rate)\b/i.test(queryLower);
         const isCurrentOrTemporal = /\b(today|now|current|currently|latest|recent|recently|live|this week|this month|right now|as of today|2026|2025)\b/i.test(queryLower);
@@ -816,7 +808,10 @@ Current User Query: "${rawQuery}"`;
           isCurrentOrTemporal && /\b(price|cost|worth|conversion|inr|usd|eur|gbp|bitcoin|btc|stock|market cap|shares|valuing|trading at|ceo|president|prime minister|pm|governor|cm|chief minister|weather|temperature|forecast|version|release|latest version|current version)\b/i.test(queryLower)
         ) || /\b(who is the current|what is the current|latest version of|current version of|latest release of)\b/i.test(queryLower);
 
-        const hasInternal = internalPattern.test(queryLower);
+        const hasInternalKeyword = internalKeywordPattern.test(queryLower);
+        const isDomainOrEntityQuery = domainQueryPattern.test(queryLower) || (!isGenericCsConcept && !isGenericCodeRequest && /\b(what is|what are|tell me about|explain|describe|details of|overview of|who is responsible for|how to handle)\b/i.test(queryLower));
+
+        const hasInternal = hasInternalKeyword || isDomainOrEntityQuery;
         const hasWeb = webPattern.test(queryLower) || isExplicitWebSearch || (isDynamicDataQuery && !hasInternal);
 
         if (hasInternal && (hasWeb || isDynamicDataQuery)) {
@@ -981,20 +976,28 @@ Current User Query: "${rawQuery}"`;
       const nodeStart = performance.now();
       callbacks?.onEvent?.({ type: 'node_execution', data: { nodeName: 'clarifyWithUser' } });
 
-      // Heuristic clarification bypass for highly specific or long queries (e.g. >100 characters or containing specific comparative terms/numbers)
+      // Heuristic clarification bypass for highly specific or long queries or clear internal/document queries
       const q = state.userQuery?.trim() ?? '';
       const isSpecificLongQuery = q.length > 100 || 
         /\b(compare|comparison|versus|\bvs\b|difference between|pros and cons|revenue|growth|stock price|financial|quarter|fiscal|year|growth comparison|puzzle|riddle|solve|code)\b/i.test(q);
 
-      if (isSpecificLongQuery) {
-        console.log(`[KnowledgeGraph] ⚡ Bypassing clarification assessment for specific/long query: "${q.slice(0, 40)}..." (0ms overhead)`);
+      const isClearQuery = isSpecificLongQuery ||
+        state.intentCategory === 'INTERNAL_KNOWLEDGE' ||
+        state.intentCategory === 'DOC_CATALOG_BROWSE' ||
+        state.intentCategory === 'CASUAL' ||
+        state.intentCategory === 'IDENTITY' ||
+        state.intentCategory === 'MIXED' ||
+        state.useKnowledgeBase;
+
+      if (isClearQuery) {
+        console.log(`[KnowledgeGraph] ⚡ Bypassing clarification assessment for clear query: "${q.slice(0, 40)}..." (0ms overhead)`);
         callbacks?.onEvent?.({
           type: 'scope_assessment',
           data: {
             needClarification: false,
             question: "",
             optionsCount: 0,
-            decision: 'RESEARCH_STARTED (Specific/long query bypass)'
+            decision: 'RESEARCH_STARTED (Clear query bypass)'
           }
         });
         callbacks?.onEvent?.({
@@ -1055,7 +1058,7 @@ Current User Query: "${rawQuery}"`;
         };
       }
 
-      const llm = getOllamaChatModel({ numPredict: 150, temperature: 0.1 });
+      const llm = aiGateway.getChatModel({ numPredict: 150, temperature: 0.1 });
 
       // Prune history to last 2 messages to minimize prompt prefill latency
       const recentMessages = (state.messages || []).slice(-2);
@@ -1169,13 +1172,20 @@ Respond ONLY in valid JSON matching this schema:
       const messages = state.messages || [];
       const isStandaloneQuery = messages.length === 0 || !/\b(it|its|they|them|their|that|this|he|she|his|her|former|latter|previous|above)\b/i.test(state.userQuery);
 
+      const isClearInternalOrDocQuery = state.intentCategory === 'INTERNAL_KNOWLEDGE' || 
+        state.intentCategory === 'DOC_CATALOG_BROWSE' || 
+        state.intentCategory === 'CASUAL' || 
+        state.intentCategory === 'IDENTITY' || 
+        state.intentCategory === 'MIXED' ||
+        state.useKnowledgeBase;
+
       let researchBrief = state.userQuery;
       let llmDurationMs = 0;
       let llmCallsCount = 0;
 
-      if (!isStandaloneQuery) {
+      if (!isStandaloneQuery && !isClearInternalOrDocQuery) {
         llmCallsCount = 1;
-        const llm = getOllamaChatModel({
+        const llm = aiGateway.getChatModel({
           modelName: state.executionMode,
           numPredict: 60
         });
@@ -1248,14 +1258,7 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
       callbacks?.onEvent?.({ type: 'tool_call', data: { name: 'internal_knowledge', query: state.userQuery } });
 
       try {
-        let overrideScope: 'PERSONAL' | 'ORGANIZATION' | undefined = undefined;
-        if (!state.useKnowledgeBase) {
-          const isExplicitOrgQuery = /\b(organization docs|company docs|org knowledge|company policy|org documents)\b/i.test(state.userQuery || '');
-          if (!isExplicitOrgQuery) {
-            overrideScope = 'PERSONAL';
-          }
-        }
-        const tool = createInternalKnowledgeTool(state.authContext, overrideScope);
+        const tool = createInternalKnowledgeTool(state.authContext);
         const rawResult = await tool.invoke({ query: state.userQuery });
         const parsed = JSON.parse(rawResult);
 
@@ -1268,7 +1271,10 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
               ? d.metadata.title
               : `Org Document (${d.metadata?.documentId?.slice(0, 8) || 'Doc'})`,
           documentId: d.metadata?.documentId,
+          documentVersionId: d.metadata?.documentVersionId,
           chunkId: d.metadata?.chunkId,
+          isVisual: !!d.metadata?.isVisual,
+          mimeType: d.metadata?.mimeType || undefined,
           snippet: (d.content || d.pageContent || '').slice(0, 150),
         }));
 
@@ -1802,9 +1808,32 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
 
       callbacks?.onEvent?.({ type: 'llm_started' });
 
+      const isInternalRAG = state.intentCategory === 'INTERNAL_KNOWLEDGE' || state.useKnowledgeBase;
+      const hasInternalDocs = Array.isArray(state.internalDocs) && state.internalDocs.length > 0;
+      const hasWebResults = Array.isArray(state.webResults) && state.webResults.length > 0;
+
+      if (isInternalRAG && !hasInternalDocs && !hasWebResults && state.intentCategory !== 'IDENTITY' && state.intentCategory !== 'DOC_CATALOG_BROWSE') {
+        const refusalMessage = state.internalKnowledgeStatus === 'error'
+          ? 'Encountered an error retrieving documents from the internal knowledge base.'
+          : 'No relevant information was found in the authorized knowledge base.';
+
+        console.log(`[KnowledgeGraph] 🔒 Structural No-Answer Enforced: ${refusalMessage}`);
+        callbacks?.onEvent?.({ type: 'synthesis_completed', data: { responseText: refusalMessage } });
+
+        return {
+          finalAnswer: refusalMessage
+        };
+      }
+
+      const isShortConstrainedQuery = /\b(\d+\s*(bullet|point|item|sentence)s?|one sentence|single sentence|briefly|short answer|in short|quick summary|in brief|concise)\b/i.test(state.userQuery || '');
+
+      const reservedOutputTokens = state.executionMode === 'FAST'
+        ? (isInternalRAG ? (isShortConstrainedQuery ? 180 : 512) : 1024)
+        : 1024;
+
       const llm = aiGateway.getChatModel({
         modelName: state.executionMode,
-        numPredict: state.executionMode === 'FAST' ? 1024 : 1536,
+        numPredict: reservedOutputTokens,
         temperature: 0.1
       });
 
@@ -1827,9 +1856,15 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
 
       if (state.intentCategory === 'IDENTITY') {
         systemPrompt += `\n--- IDENTITY INTENT RESPONSE RULES ---\n`;
-        systemPrompt += `1. The user is asking about their identity, name, profile, or logged-in account status.\n`;
-        systemPrompt += `2. You MUST state their name (${state.authContext.userName || 'Authenticated User'}), email (${state.authContext.email || 'N/A'}), user ID (${state.authContext.userId}), and organization authoritatively using ONLY the AUTHENTICATED SESSION BOUNDARY above.\n`;
-        systemPrompt += `3. DO NOT mention document retrieval, RAG, or any external subjects.\n\n`;
+        systemPrompt += `1. You are AUREN, an Enterprise AI Knowledge Assistant.\n`;
+        systemPrompt += `2. USER IDENTITY: If asking about user identity or account, state their name (${state.authContext.userName || 'Authenticated User'}), email (${state.authContext.email || 'N/A'}), user ID (${state.authContext.userId}), and organization authoritatively using ONLY the AUTHENTICATED SESSION BOUNDARY above.\n`;
+        systemPrompt += `3. SYSTEM & MODEL IDENTITY: If asking what model, AI, or runtime powers you, state authoritatively using AUREN's actual runtime configuration:\n`;
+        systemPrompt += `   - System Identity: AUREN Enterprise Knowledge Assistant\n`;
+        systemPrompt += `   - Chat Model: ${process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'llamacpp'} (${process.env.LLAMACPP_CHAT_MODEL || 'ornith-9b.gguf'})\n`;
+        systemPrompt += `   - Embedding Model: ${process.env.EMBEDDING_PROVIDER || 'llamacpp'} (${process.env.LLAMACPP_EMBEDDING_MODEL || 'nomic-embed-text.gguf'})\n`;
+        systemPrompt += `   - Vision Model: ${process.env.VISION_PROVIDER || 'llamacpp'} (${process.env.LLAMACPP_VISION_MODEL || 'qwen2.5-vl-7b-instruct-q4_k_m.gguf'})\n`;
+        systemPrompt += `4. You MUST NOT state that you are ChatGPT, OpenAI, or a raw unconfigured model without identifying as AUREN.\n`;
+        systemPrompt += `5. DO NOT mention document retrieval, RAG, or external web search.\n\n`;
       }
 
       if (state.intentCategory === 'DOC_CATALOG_BROWSE') {
@@ -2047,13 +2082,14 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
         // Fix 1: Calculate total prompt overhead accounting for base instructions, user query, history, memories, AND web/telemetry extras
         const promptOverheadTokens = ContextPacker.estimateTokens(systemPrompt + nonDocExtras + state.userQuery);
 
-        // Fix 2: Single source of truth for model context window from Ollama model configuration
+        // Fix 2: Single source of truth for model context window (accounting for llama-server --parallel 2 slot allocation)
         const modelConfig = aiGateway.getModelConfig({ modelName: state.executionMode });
-        const modelContextWindow = modelConfig.numCtx;
+        const parallelSlots = Number(process.env.LLAMACPP_PARALLEL_SLOTS) || 2;
+        const totalServerCtx = modelConfig.numCtx;
+        const slotContextWindow = Math.floor(totalServerCtx / parallelSlots);
 
-        const reservedOutputTokens = state.executionMode === 'FAST' ? 1024 : 1536;
         const availableBudgetTokens = ContextPacker.calculateAvailableBudget({
-          modelContextWindow,
+          modelContextWindow: slotContextWindow,
           reservedOutputTokens,
           safetyMarginTokens: 100,
           systemPromptOverhead: promptOverheadTokens
@@ -2079,6 +2115,15 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
           systemPrompt += `The following ${packingResult.packedCount} chunk(s) (packed within a ${availableBudgetTokens} token context budget; ${packingResult.droppedCount} chunk(s) dropped) were retrieved from your organization's document knowledge base. Answer using ONLY this content.\n\n`;
           systemPrompt += packingResult.formattedContext;
         }
+      }
+
+      if ((state.intentCategory === 'INTERNAL_KNOWLEDGE' || state.useKnowledgeBase) && state.intentCategory !== 'MIXED' && packedChunksCount === 0 && (state.internalDocs?.length || 0) > 0) {
+        const noInfoMsg = "I couldn't find relevant information in the authorized organization knowledge.";
+        callbacks?.onEvent?.({ type: 'token', data: noInfoMsg });
+        callbacks?.onEvent?.({ type: 'sources', data: state.citations });
+        callbacks?.onEvent?.({ type: 'synthesis_completed', data: { answerLength: noInfoMsg.length } });
+        callbacks?.onEvent?.({ type: 'completed' });
+        return { finalAnswer: noInfoMsg };
       }
 
       if (state.catalogDocs && state.catalogDocs.length > 0) {
@@ -2122,12 +2167,14 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
         state.intentCategory === 'DYNAMIC_DATA' || state.intentCategory === 'EXTERNAL_WEB';
       const isRAGSynthesis =
         state.intentCategory === 'INTERNAL_KNOWLEDGE' && hasInternalDocsForPrompt;
+      const isIdentitySynthesis =
+        state.intentCategory === 'IDENTITY';
       const hasLiveEvidence =
         (state.validatedEvidence && state.validatedEvidence.length > 0) ||
         (state.webResults && state.webResults.length > 0);
 
-      const messagesForLLM = ((isDynamicSynthesis && hasLiveEvidence) || isRAGSynthesis)
-        ? []   // No history — answer ONLY from injected evidence, no contamination from prior turns
+      const messagesForLLM = ((isDynamicSynthesis && hasLiveEvidence) || isRAGSynthesis || isIdentitySynthesis)
+        ? []   // No history — answer ONLY from injected evidence/authoritative prompt, no contamination from prior turns
         : state.messages;
 
       const llmStreamStart = performance.now();

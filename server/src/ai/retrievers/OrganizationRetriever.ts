@@ -2,9 +2,12 @@ import { BaseRetriever, type BaseRetrieverInput } from '@langchain/core/retrieve
 import { Document } from '@langchain/core/documents';
 import { CallbackManagerForRetrieverRun } from '@langchain/core/callbacks/manager';
 import { QdrantVectorStoreProvider } from '../../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider';
-import { OllamaEmbeddingProvider } from '../../infrastructure/providers/adapters/embedding/OllamaEmbeddingProvider';
+import { ProviderFactory } from '../../infrastructure/providers/registry/ProviderFactory';
+import { IEmbeddingProvider } from '../../infrastructure/providers/interfaces/IEmbeddingProvider';
 import { PermissionFilter } from '../../infrastructure/search/PermissionFilter';
 import { DocumentAccessPolicy, AccessSubject, AccessControlledDocument } from '../../domain/security/DocumentAccessPolicy';
+import { ConnectorPolicyService } from '../../domain/security/ConnectorPolicyService';
+import { prisma } from '../../infrastructure/database/prisma';
 
 export interface UserAuthContext {
   organizationId: string;
@@ -21,6 +24,7 @@ export interface OrganizationRetrieverInput extends BaseRetrieverInput {
   topK?: number;
   similarityThreshold?: number;
   overrideScope?: 'PERSONAL' | 'ORGANIZATION';
+  embeddingProvider?: IEmbeddingProvider;
 }
 
 export class OrganizationRetriever extends BaseRetriever {
@@ -35,7 +39,7 @@ export class OrganizationRetriever extends BaseRetriever {
   private similarityThreshold: number;
   private overrideScope?: 'PERSONAL' | 'ORGANIZATION';
   private qdrantProvider: QdrantVectorStoreProvider;
-  private embeddingProvider: OllamaEmbeddingProvider;
+  private embeddingProvider: IEmbeddingProvider;
 
   constructor(fields: OrganizationRetrieverInput) {
     super(fields);
@@ -44,14 +48,14 @@ export class OrganizationRetriever extends BaseRetriever {
     this.similarityThreshold = fields.similarityThreshold ?? 0.0;
     this.overrideScope = fields.overrideScope;
     this.qdrantProvider = new QdrantVectorStoreProvider();
-    this.embeddingProvider = new OllamaEmbeddingProvider();
+    this.embeddingProvider = fields.embeddingProvider || new ProviderFactory().getEmbeddingProvider();
   }
 
   private detectQueryScope(query: string): 'PERSONAL' | 'ORGANIZATION' | undefined {
-    if (/\b(my personal|my private|my uploaded|in my docs|in my files|my notes)\b/i.test(query)) {
+    if (/\b(my resume|my personal|my private|my uploaded|in my docs|in my files|my notes|my projects|projects have i worked on|what projects have i)\b/i.test(query)) {
       return 'PERSONAL';
     }
-    if (/\b(organization docs|company docs|org knowledge|company policy|org documents)\b/i.test(query)) {
+    if (/\b(organization docs|company docs|org knowledge|company policy|org documents|our deployment policy|company deployment policy|organization knowledge)\b/i.test(query)) {
       return 'ORGANIZATION';
     }
     return undefined; // Unified default (searches across both personal and organization documents)
@@ -61,21 +65,21 @@ export class OrganizationRetriever extends BaseRetriever {
     query: string,
     runManager?: CallbackManagerForRetrieverRun
   ): Promise<Document[]> {
-    const embeddingModel = process.env.OLLAMA_EMBEDDING_MODEL || 'qwen3-embedding:8b';
+    const embeddingProviderName = process.env.EMBEDDING_PROVIDER || 'llamacpp';
     const effectiveScope = this.overrideScope || this.detectQueryScope(query);
 
     console.log(`\n[OrganizationRetriever Diagnostic]`);
     console.log(` -> Query Received: "${query}"`);
     console.log(` -> Scope Mode: ${effectiveScope ? `EXPLICIT (${effectiveScope})` : 'UNIFIED (PERSONAL + ORGANIZATION)'}`);
     console.log(` -> Auth Context: orgId=${this.authContext.organizationId}, userId=${this.authContext.userId}, roles=${JSON.stringify(this.authContext.roles)}, dept=${this.authContext.departmentId ?? 'none'}`);
-    console.log(` -> Embedding Model Used: ${embeddingModel}`);
+    console.log(` -> Embedding Provider Used: ${embeddingProviderName}`);
 
     let vector: number[];
     try {
       vector = await this.embeddingProvider.embedText(query);
       console.log(` -> Query Embedding Generated: Dimensions = ${vector.length}`);
     } catch (embeddingErr: any) {
-      console.error(`[OrganizationRetriever] ✗ Embedding failed — Ollama may be offline: ${embeddingErr.message}`);
+      console.error(`[OrganizationRetriever] ✗ Embedding failed (${embeddingProviderName}): ${embeddingErr.message}`);
       // Return empty — synthesizeAnswer will use LLM knowledge as fallback
       return [];
     }
@@ -121,7 +125,7 @@ export class OrganizationRetriever extends BaseRetriever {
 
     console.log(` -> Raw Candidates Retrieved from Qdrant: ${searchResults.length}`);
 
-    // Defense-in-Depth Post-Filtering with DocumentAccessPolicy
+    // Defense-in-Depth Post-Filtering with DocumentAccessPolicy and ConnectorPolicyService
     const accessSubject: AccessSubject = {
       id: this.authContext.userId,
       organizationId: this.authContext.organizationId,
@@ -130,8 +134,36 @@ export class OrganizationRetriever extends BaseRetriever {
       isSuperAdmin: !!this.authContext.isSuperAdmin
     };
 
-    const authorizedCandidates = searchResults.filter((res: any) => {
+    // Pre-fetch active connector policies for this organization to perform instant dynamic evaluation
+    const activeConnectorPolicies = await prisma.connectorPolicy.findMany({
+      where: { organizationId: this.authContext.organizationId }
+    });
+
+    const authorizedCandidates: any[] = [];
+    for (const res of searchResults) {
       const payload = res.payload || {};
+
+      // 1. Authoritative AUREN Connector Policy Check
+      const isConnectorDoc = payload.sourceProvider && payload.sourceProvider !== 'UPLOAD';
+      if (isConnectorDoc) {
+        const connPolicyResult = await ConnectorPolicyService.evaluateAccess(
+          accessSubject,
+          {
+            organizationId: payload.organizationId || this.authContext.organizationId,
+            provider: payload.sourceProvider,
+            sourceUrl: payload.sourceUrl,
+            externalId: payload.externalId,
+          },
+          activeConnectorPolicies
+        );
+
+        if (connPolicyResult === 'DENY') {
+          console.warn(`[OrganizationRetriever] 🛑 ConnectorPolicy DENIED chunk ${res.id} (resource: ${payload.externalId || payload.sourceUrl}) for user ${this.authContext.userId}`);
+          continue;
+        }
+      }
+
+      // 2. Existing DocumentAccessPolicy Check
       const doc: AccessControlledDocument = {
         id: payload.documentId || String(res.id),
         organizationId: payload.organizationId || this.authContext.organizationId,
@@ -150,14 +182,23 @@ export class OrganizationRetriever extends BaseRetriever {
       const canAccess = DocumentAccessPolicy.canAccess(accessSubject, doc);
       if (!canAccess) {
         console.warn(`[OrganizationRetriever] 🛑 Defense-in-depth DENIED chunk ${res.id} (doc: ${payload.documentName || payload.documentId}) for user ${this.authContext.userId}`);
+        continue;
       }
-      return canAccess;
-    });
+
+      authorizedCandidates.push(res);
+    }
 
     console.log(` -> Post-Policy Authorized Candidates: ${authorizedCandidates.length}`);
 
-    // 1. Min quality cutoff (filters out pure noise / negative similarity)
-    const MIN_RELEVANCE_SCORE = 0.25;
+    // Minimum raw relevance gate: if the top candidate score is below 0.52, all candidates are irrelevant noise
+    const topRawScore = authorizedCandidates.reduce((max, c) => Math.max(max, c.score ?? 0), 0);
+    if (topRawScore < 0.52) {
+      console.log(` -> Top candidate raw score (${topRawScore.toFixed(4)}) below relevance gate (0.52). Returning no evidence.`);
+      return [];
+    }
+
+    // Min quality cutoff for individual candidate chunks
+    const MIN_RELEVANCE_SCORE = 0.55;
     const validCandidates = authorizedCandidates.filter((res: any) => (res.score ?? 0) >= MIN_RELEVANCE_SCORE);
 
     if (validCandidates.length === 0) {
@@ -165,9 +206,7 @@ export class OrganizationRetriever extends BaseRetriever {
       return [];
     }
 
-    // 2. Score ranking with Ownership Priority
-    // Give user's own documents (matching authContext.userId) a rank boost so personal docs (e.g. uploaded resume)
-    // are prioritized over generic ORG_WIDE docs when relevance is close.
+    // Score ranking with Ownership Priority (only applied to valid matches >= 0.55)
     const scoredCandidates = validCandidates.map((res: any) => {
       const rawScore = res.score ?? 0;
       const isOwner = res.payload?.ownerId && this.authContext.userId && res.payload.ownerId === this.authContext.userId;
@@ -175,7 +214,7 @@ export class OrganizationRetriever extends BaseRetriever {
       
       let adjustedScore = rawScore;
       if (isOwner) {
-        adjustedScore += isPrivate ? 0.20 : 0.10;
+        adjustedScore += isPrivate ? 0.10 : 0.05;
       }
 
       return { res, rawScore, adjustedScore };
@@ -209,11 +248,14 @@ export class OrganizationRetriever extends BaseRetriever {
       metadata: {
         documentId: res.payload?.documentId,
         documentName: res.payload?.documentName || null,
+        documentVersionId: res.payload?.documentVersionId || null,
         chunkId: res.id,
         chunkIndex: res.payload?.chunkIndex,
         ownerId: res.payload?.ownerId || null,
         visibility: res.payload?.visibility || null,
         scope: res.payload?.scope || null,
+        isVisual: !!res.payload?.isVisual,
+        mimeType: res.payload?.mimeType || null,
         pageNumbers: res.payload?.pageNumbers || [],
         sectionTitle: res.payload?.sectionTitle || null,
         score: rawScore,
@@ -226,7 +268,10 @@ export class OrganizationRetriever extends BaseRetriever {
               ? res.payload.title
               : 'Org Document',
         organizationId: this.authContext.organizationId,
-        sourceType: 'internal',
+        sourceType: res.payload?.sourceProvider || 'UPLOAD',
+        sourceProvider: res.payload?.sourceProvider || 'UPLOAD',
+        sourceUrl: res.payload?.sourceUrl || null,
+        externalId: res.payload?.externalId || null,
       }
     }));
   }

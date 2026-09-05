@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import { OllamaEmbeddingProvider } from '../infrastructure/providers/adapters/embedding/OllamaEmbeddingProvider';
+import { LlamaCppEmbeddingProvider } from '../infrastructure/providers/adapters/embedding/LlamaCppEmbeddingProvider';
 import { QdrantVectorStoreProvider } from '../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider';
 import { LocalOCRProvider } from '../infrastructure/providers/adapters/ocr/LocalOCRProvider';
 import { OrganizationRetriever } from '../ai/retrievers/OrganizationRetriever';
@@ -15,7 +15,7 @@ async function runE2EVerification() {
   const testRoles = ['ADMIN', 'USER'];
   const collectionName = `org_${testOrgId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
 
-  const embeddingProvider = new OllamaEmbeddingProvider();
+  const embeddingProvider = new LlamaCppEmbeddingProvider();
   const qdrantProvider = new QdrantVectorStoreProvider();
   const ocrProvider = new LocalOCRProvider();
 

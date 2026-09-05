@@ -1,9 +1,9 @@
-import { getOllamaChatModel } from '../ai/models/OllamaModel';
+import { ProviderFactory } from '../infrastructure/providers/registry/ProviderFactory';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 
 async function testClarifyLLM() {
   console.log('Testing clarifyWithUser LLM call directly...');
-  const llm = getOllamaChatModel({ numPredict: 150, temperature: 0.1 });
+  const llm = new ProviderFactory().getChatProvider().getChatModel({ numPredict: 150, temperature: 0.1 });
   const start = Date.now();
 
   const clarifyWithUserInstructions = `You are a Research Scope Classifier. Decide: ask user for clarification (need_clarification=true), or proceed to research (need_clarification=false)?

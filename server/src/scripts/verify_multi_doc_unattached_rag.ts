@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { RAGService } from '../application/services/RAGService';
 import { QdrantVectorStoreProvider } from '../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider';
-import { OllamaEmbeddingProvider } from '../infrastructure/providers/adapters/embedding/OllamaEmbeddingProvider';
+import { LlamaCppEmbeddingProvider } from '../infrastructure/providers/adapters/embedding/LlamaCppEmbeddingProvider';
 
 const prisma = new PrismaClient();
 
@@ -54,7 +54,7 @@ async function main() {
 
   // 2. Ingest 3 Organizational Documents into Qdrant & Prisma
   const qdrant = new QdrantVectorStoreProvider();
-  const embeddings = new OllamaEmbeddingProvider();
+  const embeddings = new LlamaCppEmbeddingProvider();
   const collectionName = `org_${orgA.id.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
   await qdrant.ensureCollection(collectionName, 4096);
 

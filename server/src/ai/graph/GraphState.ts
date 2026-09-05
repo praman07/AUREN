@@ -20,7 +20,10 @@ export interface SourceCitation {
   title: string;
   url?: string;
   documentId?: string;
+  documentVersionId?: string;
   chunkId?: string;
+  isVisual?: boolean;
+  mimeType?: string;
   snippet?: string;
 }
 

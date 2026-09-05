@@ -8,7 +8,7 @@
  * 3. Generate refined/targeted search queries to fill research gaps in subsequent iterations.
  */
 
-import { getOllamaChatModel } from '../models/OllamaModel';
+import { ProviderFactory } from '../../infrastructure/providers/registry/ProviderFactory';
 import { StructuredEvidence, parseResearchDimensions } from '../../infrastructure/search/EvidenceValidator';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 
@@ -19,7 +19,7 @@ export interface EvaluationResult {
 }
 
 export class LocalResearchAgent {
-  private llm = getOllamaChatModel({ temperature: 0.1 });
+  private llm = new ProviderFactory().getChatProvider().getChatModel({ temperature: 0.1 });
 
   /**
    * Evaluates current extracted evidence against user query to decide if research is sufficient
@@ -139,7 +139,7 @@ ${formattedEvidence}
 
 Is this evidence sufficient to answer the query? Respond strictly in valid JSON: {"isSufficient": boolean, "gap": "missing info", "refinedQuery": "search query"}`;
 
-      const fastLlm = getOllamaChatModel({ numPredict: 80, temperature: 0.1 });
+      const fastLlm = new ProviderFactory().getChatProvider().getChatModel({ numPredict: 80, temperature: 0.1 });
 
       let timeoutId: NodeJS.Timeout | undefined = undefined;
       const abortController = new AbortController();
