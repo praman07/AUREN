@@ -1,9 +1,9 @@
-import { getOllamaChatModel } from '../ai/models/OllamaModel';
+import { ProviderFactory } from '../infrastructure/providers/registry/ProviderFactory';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 
 async function testModel(modelName: string) {
   console.log(`--- Testing model: ${modelName} ---`);
-  const llm = getOllamaChatModel({ modelName });
+  const llm = new ProviderFactory().getChatProvider().getChatModel({ modelName });
   console.log("Invoking stream...");
   try {
     const stream = await llm.stream([

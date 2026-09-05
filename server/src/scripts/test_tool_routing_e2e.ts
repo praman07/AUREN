@@ -87,9 +87,9 @@ async function runRoutingE2ETestSuite() {
   });
 
   console.log(`[SETUP] Embedding and Indexing document chunk into Qdrant`);
-  const { OllamaEmbeddingProvider } = await import('../infrastructure/providers/adapters/embedding/OllamaEmbeddingProvider');
+  const { LlamaCppEmbeddingProvider } = await import('../infrastructure/providers/adapters/embedding/LlamaCppEmbeddingProvider');
   const { QdrantVectorStoreProvider } = await import('../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider');
-  const embedProvider = new OllamaEmbeddingProvider();
+  const embedProvider = new LlamaCppEmbeddingProvider();
   const vectorStore = new QdrantVectorStoreProvider();
 
   const vector = await embedProvider.embedText(testChunkText);

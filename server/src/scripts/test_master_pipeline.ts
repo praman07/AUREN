@@ -67,7 +67,7 @@ async function runMasterPipeline() {
     try { await prisma.$queryRaw`SELECT 1`; } catch (e) { return finish(results, 'PostgreSQL missing'); }
     try { const r = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {maxRetriesPerRequest:1}); await r.ping(); r.disconnect(); } catch (e) { return finish(results, 'Redis missing'); }
     try { const q = new QdrantClient({ url: process.env.QDRANT_URL || 'http://localhost:6333' }); await q.getCollections(); } catch (e) { return finish(results, 'Qdrant missing'); }
-    try { const res = await fetch(`${process.env.OLLAMA_API_URL || 'http://localhost:11434'}/api/tags`); if(!res.ok) throw new Error(); } catch (e) { return finish(results, 'Ollama missing'); }
+    try { const res = await fetch(`${process.env.LLM_BASE_URL || 'http://localhost:8083'}/health`); if(!res.ok) throw new Error(); } catch (e) { return finish(results, 'llama-server missing'); }
 
     console.log('✅ Infrastructure verified (PostgreSQL, Redis, Qdrant, Ollama)');
 

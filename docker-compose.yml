@@ -3,22 +3,26 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
+    container_name: auren-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ekos_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ekos_db}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ekos_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ekos_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
+    container_name: auren-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -31,6 +35,8 @@ services:
 
   qdrant:
     image: qdrant/qdrant:latest
+    container_name: auren-qdrant
+    restart: unless-stopped
     ports:
       - "6333:6333"
     volumes:
@@ -40,6 +46,89 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: auren-searxng
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SEARXNG_SECRET_KEY=${SEARXNG_SECRET_KEY:-auren-local-searxng-secret}
+      - SEARXNG_BASE_URL=http://localhost:8080/
+    volumes:
+      - ./server/searxng:/etc/searxng
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: auren-crawl4ai
+    restart: unless-stopped
+    ports:
+      - "11235:11235"
+    environment:
+      - CRAWL4AI_API_TOKEN=${CRAWL4AI_API_TOKEN:-auren_crawl4ai_secret_token_2026}
+      - CRAWL4AI_HOST=0.0.0.0
+      - HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:11235/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: auren-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./server/.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ekos_db}?schema=public&client_encoding=utf8
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      SEARXNG_URL: http://searxng:8080
+      CRAWL4AI_URL: http://crawl4ai:11235
+      LLM_BASE_URL: http://host.docker.internal:8083
+      LLAMACPP_BASE_URL: http://host.docker.internal:8083
+      LLAMACPP_EMBEDDING_BASE_URL: http://host.docker.internal:8081
+      LLAMACPP_VISION_BASE_URL: http://host.docker.internal:8082
+    volumes:
+      - ./server/storage:/app/storage
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: auren-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:

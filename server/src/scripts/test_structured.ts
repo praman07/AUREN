@@ -3,7 +3,7 @@ import * as path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const baseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
+const baseUrl = process.env.LLM_BASE_URL || 'http://127.0.0.1:8083';
 
 async function testDirectOllama() {
   const model = 'qwen3.5:9b-q4_K_M';

@@ -12,6 +12,8 @@ ts_errors.txt
 *.so
 *.dylib
 *.zip
+*.gguf
+server/models/
 
 # Database & Local Storage Data
 server/qdrant_storage/

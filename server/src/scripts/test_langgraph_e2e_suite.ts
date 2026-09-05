@@ -3,7 +3,7 @@ import { RAGService } from '../application/services/RAGService';
 import { RetrievalEngine } from '../application/services/RetrievalEngine';
 import { AIGateway } from '../infrastructure/gateway/AIGateway';
 import { QdrantVectorStoreProvider } from '../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider';
-import { OllamaEmbeddingProvider } from '../infrastructure/providers/adapters/embedding/OllamaEmbeddingProvider';
+import { LlamaCppEmbeddingProvider } from '../infrastructure/providers/adapters/embedding/LlamaCppEmbeddingProvider';
 import { OrganizationRetriever } from '../ai/retrievers/OrganizationRetriever';
 import { createInternalKnowledgeTool, createWebSearchTool, dateTimeTool } from '../ai/tools/aiTools';
 
@@ -80,7 +80,7 @@ async function runLangGraphTestSuite() {
 
   // 2. Ingest Document for Org A
   const qdrant = new QdrantVectorStoreProvider();
-  const embeddings = new OllamaEmbeddingProvider();
+  const embeddings = new LlamaCppEmbeddingProvider();
 
   const docId = `doc_${Date.now()}`;
   const docTitle = 'AUREN Engineering Leave and Remote Policy';

@@ -76,7 +76,7 @@ async function runConnectorTest() {
     const aiGateway = new AIGateway(providerFactory);
     
     // Validate model separation
-    const generationModel = process.env.OLLAMA_MODEL || 'qwen2.5:14b';
+    const generationModel = process.env.LLAMACPP_MODEL || 'qwen2.5:14b';
     console.log(`[Config] Embedding Model: nomic-embed-text:latest`);
     console.log(`[Config] Generation Model: ${generationModel}\n`);
 

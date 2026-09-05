@@ -1,7 +1,7 @@
 import { prisma } from '../infrastructure/database/prisma';
 import { RAGService } from '../application/services/RAGService';
 import { QdrantVectorStoreProvider } from '../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider';
-import { OllamaEmbeddingProvider } from '../infrastructure/providers/adapters/embedding/OllamaEmbeddingProvider';
+import { LlamaCppEmbeddingProvider } from '../infrastructure/providers/adapters/embedding/LlamaCppEmbeddingProvider';
 import { OrganizationRetriever } from '../ai/retrievers/OrganizationRetriever';
 import { AuthService } from '../application/services/AuthService';
 import http from 'http';
@@ -140,7 +140,7 @@ async function runRealBrowserPipelineAudit() {
       }
     });
 
-    const embeddings = new OllamaEmbeddingProvider();
+    const embeddings = new LlamaCppEmbeddingProvider();
     const vector = await embeddings.embedText(chunkText);
     auditResults['EMBEDDINGS'] = vector.length > 0;
 
