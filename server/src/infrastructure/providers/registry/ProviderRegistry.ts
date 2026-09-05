@@ -2,12 +2,14 @@ import { IOCRProvider } from '../interfaces/IOCRProvider';
 import { IEmbeddingProvider } from '../interfaces/IEmbeddingProvider';
 import { IVectorStoreProvider } from '../interfaces/IVectorStoreProvider';
 import { IChatProvider } from '../interfaces/IChatProvider';
+import { IVisionProvider } from '../interfaces/IVisionProvider';
 
 export class ProviderRegistry {
   public readonly ocrProviders = new Map<string, () => IOCRProvider>();
   public readonly embeddingProviders = new Map<string, () => IEmbeddingProvider>();
   public readonly vectorStoreProviders = new Map<string, () => IVectorStoreProvider>();
   public readonly chatProviders = new Map<string, () => IChatProvider>();
+  public readonly visionProviders = new Map<string, () => IVisionProvider>();
 
   registerOCR(name: string, constructor: () => IOCRProvider) {
     this.ocrProviders.set(name, constructor);
@@ -23,5 +25,9 @@ export class ProviderRegistry {
 
   registerChat(name: string, constructor: () => IChatProvider) {
     this.chatProviders.set(name, constructor);
+  }
+
+  registerVision(name: string, constructor: () => IVisionProvider) {
+    this.visionProviders.set(name, constructor);
   }
 }

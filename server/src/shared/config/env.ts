@@ -7,24 +7,35 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(5000),
   CORS_ORIGIN: z.string().default('http://localhost:5174'),
-  OLLAMA_API_URL: z.string().default('http://localhost:11434'),
-  OLLAMA_MODEL: z.string().default('qwen2.5:14b'),
-  OLLAMA_EMBEDDING_MODEL: z.string().default('qwen3-embedding:8b'),
-  LLM_PROVIDER: z.string().default('ollama'),
+  LLM_PROVIDER: z.string().default('llamacpp'),
   LLM_BASE_URL: z.string().optional(),
   LLAMACPP_BASE_URL: z.string().optional(),
   LLAMACPP_MODEL: z.string().optional(),
   LLAMACPP_MODEL_FAST: z.string().optional(),
+  LLAMACPP_MODEL_DEEP: z.string().optional(),
   LLAMACPP_NUM_CTX: z.coerce.number().optional(),
-  EMBEDDING_PROVIDER: z.string().default('ollama'),
-  OLLAMA_EMBEDDING_URL: z.string().optional(),
+  
+  // Embedding configuration
+  EMBEDDING_PROVIDER: z.string().default('llamacpp'),
+  LLAMACPP_EMBEDDING_BASE_URL: z.string().optional(),
+  LLAMACPP_EMBEDDING_MODEL: z.string().optional(),
+  LLAMACPP_EMBEDDING_DIM: z.coerce.number().optional(),
+
+  // Vision configuration
+  VISION_PROVIDER: z.string().optional(),
+  LLAMACPP_VISION_BASE_URL: z.string().optional(),
+  LLAMACPP_VISION_MODEL: z.string().optional(),
+  LLAMACPP_VISION_MMPROJ: z.string().optional(),
+
   QDRANT_URL: z.string().default('http://localhost:6333'),
   SESSION_TTL_HOURS: z.coerce.number().default(168),
   CLERK_SECRET_KEY: z.string().optional(),
   CLERK_PUBLISHABLE_KEY: z.string().optional(),
-  ENCRYPTION_KEY: z.string().optional(),
-  DATABASE_URL: z.string().optional(),
-  REDIS_URL: z.string().optional(),
+  // GitHub OAuth configuration
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+  GITHUB_CALLBACK_URL: z.string().optional(),
+
   // Web search pipeline
   SEARXNG_URL: z.string().optional(),                          // e.g. http://localhost:8080
   CRAWL4AI_URL: z.string().optional(),                         // e.g. http://localhost:11235

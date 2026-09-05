@@ -17,19 +17,19 @@ export class AIGateway implements IAIGateway {
   }
 
   public getChatModel(options: ChatOptions = {}): any {
-    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama';
+    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'llamacpp';
     const provider = this.providerFactory.getChatProvider(providerName);
     return provider.getChatModel(options);
   }
 
   public getModelConfig(options: ChatOptions = {}): any {
-    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama';
+    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'llamacpp';
     const provider = this.providerFactory.getChatProvider(providerName);
     return provider.getModelConfig ? provider.getModelConfig(options) : {};
   }
 
   public async streamChat(messages: any[], options: ChatOptions = {}): Promise<AsyncGenerator<string, void, unknown>> {
-    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama';
+    const providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'llamacpp';
     const provider = this.providerFactory.getChatProvider(providerName);
     return provider.streamChat(messages, options);
   }
@@ -77,7 +77,7 @@ export class AIGateway implements IAIGateway {
 
     switch (capability) {
       case AICapability.CHAT:
-        providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'ollama';
+        providerName = process.env.LLM_PROVIDER || process.env.CHAT_PROVIDER || 'llamacpp';
         provider = this.providerFactory.getChatProvider(providerName);
         context.providerUsed = providerName;
         
@@ -89,7 +89,7 @@ export class AIGateway implements IAIGateway {
         });
 
       case AICapability.EMBEDDING:
-        providerName = isFallback ? 'ollama' : (process.env.EMBEDDING_PROVIDER || 'ollama');
+        providerName = process.env.EMBEDDING_PROVIDER || 'llamacpp';
         provider = this.providerFactory.getEmbeddingProvider(providerName);
         context.providerUsed = providerName;
         
@@ -110,13 +110,23 @@ export class AIGateway implements IAIGateway {
           return (await provider.extractText(buffer, mimeType)) as unknown as TResponse;
         });
 
+      case AICapability.VISION:
+        providerName = isFallback ? 'llamacpp' : (process.env.VISION_PROVIDER || 'llamacpp');
+        provider = this.providerFactory.getVisionProvider(providerName);
+        context.providerUsed = providerName;
+
+        const visionBreaker = this.getCircuitBreaker(providerName);
+        return await visionBreaker.execute(async () => {
+          return (await provider.analyzeImage(payload as any)) as unknown as TResponse;
+        });
+
       default:
         throw new Error(`Capability ${capability} is not implemented in Gateway routing`);
     }
   }
 
   public async embed(request: { texts: string[], context: any }): Promise<{ model: string, dimension: number, embeddings: number[][] }> {
-    const providerName = process.env.EMBEDDING_PROVIDER || 'ollama';
+    const providerName = process.env.EMBEDDING_PROVIDER || 'llamacpp';
     const provider = this.providerFactory.getEmbeddingProvider(providerName);
     const embeddings = await provider.embedBatch(request.texts);
     return {
@@ -124,5 +134,11 @@ export class AIGateway implements IAIGateway {
       dimension: provider.getDimensions(),
       embeddings
     };
+  }
+
+  public async analyzeImage(input: any): Promise<any> {
+    const providerName = process.env.VISION_PROVIDER || 'llamacpp';
+    const provider = this.providerFactory.getVisionProvider(providerName);
+    return await provider.analyzeImage(input);
   }
 }
