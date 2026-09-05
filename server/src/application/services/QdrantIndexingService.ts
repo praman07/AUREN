@@ -27,6 +27,10 @@ export class QdrantIndexingService {
           allowedDepartments: true,
           deniedDepartments: true,
           title: true,       // needed for citation title in Qdrant payload
+          mimeType: true,    // needed for visual source classification
+          sourceType: true,  // needed for source provider classification (e.g. GITHUB vs UPLOAD)
+          sourceUrl: true,   // canonical external URL (e.g. GitHub URL)
+          externalId: true,  // external resource identifier (e.g. github://repo/path)
         }
       });
 
@@ -39,6 +43,14 @@ export class QdrantIndexingService {
         throw new Error('Zero-Trust Violation: Job organizationId does not match authoritative document organizationId');
       }
 
+      const totalChunksCount = await prisma.documentChunk.count({
+        where: { versionId: payload.versionId }
+      });
+
+      const failedChunksCount = await prisma.documentChunk.count({
+        where: { versionId: payload.versionId, embeddingStatus: 'FAILED' }
+      });
+
       const chunks = await prisma.documentChunk.findMany({
         where: {
           versionId: payload.versionId,
@@ -49,9 +61,21 @@ export class QdrantIndexingService {
       });
 
       if (chunks.length === 0) {
-        // No chunks to process, just complete
-        await this.orchestrator.handleEvent(PipelineEventType.INDEXING_COMPLETED, payload);
-        return;
+        if (totalChunksCount === 0 || failedChunksCount > 0) {
+          throw new Error(`Cannot index document version ${payload.versionId}: 0 valid completed embeddings found (${failedChunksCount}/${totalChunksCount} chunks in FAILED status)`);
+        }
+
+        const alreadyIndexedCount = await prisma.documentChunk.count({
+          where: { versionId: payload.versionId, indexingStatus: 'COMPLETED' }
+        });
+
+        if (alreadyIndexedCount > 0 && alreadyIndexedCount === totalChunksCount) {
+          // All chunks were already indexed in Qdrant successfully
+          await this.orchestrator.handleEvent(PipelineEventType.INDEXING_COMPLETED, payload);
+          return;
+        }
+
+        throw new Error(`Cannot index document version ${payload.versionId}: 0 valid chunks ready for vector indexing`);
       }
 
       // 2. Validate embedding dimensions
@@ -77,38 +101,49 @@ export class QdrantIndexingService {
         
         const crypto = require('crypto');
         // Build Qdrant points
-        const points = batch.map(chunk => ({
-          id: chunk.id, // Qdrant point ID uses Chunk ID
-          vector: chunk.vectorData,
-          payload: {
-            // Zero Trust Metadata (Authoritative)
-            organizationId: document.organizationId,
-            departmentId: document.departmentId,
-            visibility: document.visibility,
-            scope: document.scope,
-            ownerId: document.ownerId,
-            documentId: chunk.documentId,
-            documentVersionId: chunk.versionId,
-            chunkId: chunk.id,
+        const points = batch.map(chunk => {
+          const chunkMeta = typeof chunk.metadata === 'object' && chunk.metadata !== null ? (chunk.metadata as any) : {};
+          const isVisual = !!(document.mimeType?.startsWith('image/') || chunkMeta.isVisual);
+          const mimeType = document.mimeType || chunkMeta.mimeType || null;
 
-            // Zero-Trust Policy Metadata (must be indexed with every point)
-            allowedRoles: document.allowedRoles,
-            deniedRoles: document.deniedRoles,
-            allowedUsers: document.allowedUsers,
-            deniedUsers: document.deniedUsers,
-            allowedDepartments: document.allowedDepartments,
-            deniedDepartments: document.deniedDepartments,
-            
-            // Context Metadata
-            documentName: document.title || null,   // human-readable document title
-            pageNumbers: chunk.pageNumbers,
-            sectionTitle: chunk.sectionTitle,
-            chunkIndex: chunk.chunkIndex,
-            text: chunk.text, // Store text in Qdrant for retrieval
-            createdAt: chunk.createdAt.toISOString(),
-            updatedAt: chunk.updatedAt.toISOString()
-          }
-        }));
+          return {
+            id: chunk.id, // Qdrant point ID uses Chunk ID
+            vector: chunk.vectorData,
+            payload: {
+              // Zero Trust Metadata (Authoritative)
+              organizationId: document.organizationId,
+              departmentId: document.departmentId,
+              visibility: document.visibility,
+              scope: document.scope,
+              ownerId: document.ownerId,
+              documentId: chunk.documentId,
+              documentVersionId: chunk.versionId,
+              chunkId: chunk.id,
+
+              // Zero-Trust Policy Metadata (must be indexed with every point)
+              allowedRoles: document.allowedRoles,
+              deniedRoles: document.deniedRoles,
+              allowedUsers: document.allowedUsers,
+              deniedUsers: document.deniedUsers,
+              allowedDepartments: document.allowedDepartments,
+              deniedDepartments: document.deniedDepartments,
+              
+              // Context Metadata
+              documentName: document.title || null,   // human-readable document title
+              isVisual,
+              mimeType,
+              sourceProvider: document.sourceType || 'UPLOAD',
+              sourceUrl: document.sourceUrl || null,
+              externalId: document.externalId || null,
+              pageNumbers: chunk.pageNumbers,
+              sectionTitle: chunk.sectionTitle,
+              chunkIndex: chunk.chunkIndex,
+              text: chunk.text, // Store text in Qdrant for retrieval
+              createdAt: chunk.createdAt.toISOString(),
+              updatedAt: chunk.updatedAt.toISOString()
+            }
+          };
+        });
 
         // Upsert batch
         await vectorStoreProvider.upsert(collectionName, points);
@@ -126,6 +161,38 @@ export class QdrantIndexingService {
         });
 
         await prisma.$transaction(updatePromises);
+      }
+
+      // Fix 2: Purge stale previous version vectors from Qdrant AFTER new version is successfully indexed
+      try {
+        const previousVersions = await prisma.documentVersion.findMany({
+          where: {
+            documentId: payload.documentId,
+            id: { not: payload.versionId }
+          },
+          select: { id: true }
+        });
+
+        if (previousVersions.length > 0) {
+          const prevVersionIds = previousVersions.map((v) => v.id);
+          const qdrant = vectorStoreProvider as any;
+          if (qdrant && typeof qdrant.client?.delete === 'function') {
+            for (const prevVerId of prevVersionIds) {
+              await qdrant.client.delete(collectionName, {
+                wait: true,
+                filter: {
+                  must: [
+                    { key: 'documentId', match: { value: payload.documentId } },
+                    { key: 'documentVersionId', match: { value: prevVerId } }
+                  ]
+                }
+              });
+            }
+            console.log(`[QdrantIndexingService] Purged ${prevVersionIds.length} stale previous version(s) for document ${payload.documentId} from ${collectionName}`);
+          }
+        }
+      } catch (purgeErr: any) {
+        console.warn(`[QdrantIndexingService] Warning purging previous version vectors for doc ${payload.documentId}:`, purgeErr?.message || purgeErr);
       }
 
       // 5. Audit log

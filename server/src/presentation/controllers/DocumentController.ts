@@ -73,4 +73,25 @@ export class DocumentController {
       res.status(200).json({ success: true, data: doc });
     } catch (error) { next(error); }
   };
+
+  public getDocumentFile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id, versionId } = req.params;
+      const fileData = await this.documentService.getDocumentFile(id as string, versionId as string, this.requester(req));
+      res.setHeader('Content-Type', fileData.mimeType);
+      res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.send(fileData.buffer);
+    } catch (error) { next(error); }
+  };
+
+  public reprocessDocument = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const user = req.user!;
+      const { orchestrator } = await import('../../di');
+      const result = await orchestrator.reprocessFailedDocument(id as string, user.organizationId);
+      res.status(200).json({ success: true, data: result });
+    } catch (error) { next(error); }
+  };
 }

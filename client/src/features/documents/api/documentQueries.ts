@@ -168,3 +168,20 @@ export function useDeleteAllDocuments() {
   });
 }
 
+export function useReprocessDocument() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.post(`/documents/${id}/reprocess`);
+      return response.data || response;
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['documents', id] });
+    },
+  });
+}
+
+

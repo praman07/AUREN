@@ -1,8 +1,8 @@
 import React from 'react';
 import type { Document } from '../../../api/documentQueries';
-import { useUpdateDocumentPermissions } from '../../../api/documentQueries';
+import { useUpdateDocumentPermissions, useReprocessDocument } from '../../../api/documentQueries';
 import { DetailRow, SectionHeader } from '../ui/DetailRow';
-import { Info, Shield, BrainCircuit } from 'lucide-react';
+import { Info, Shield, BrainCircuit, RefreshCw } from 'lucide-react';
 import { AIStatusBadge } from '../../ui/DocumentStatusBadges';
 
 export const OverviewSection: React.FC<{ doc: Document }> = ({ doc }) => {
@@ -219,16 +219,43 @@ export const SecuritySection: React.FC<{ doc: Document }> = ({ doc }) => {
 };
 
 export const AISection: React.FC<{ doc: Document }> = ({ doc }) => {
-  const status = (doc.jobs?.[0]?.status === 'COMPLETED' ? 'Ready' : 'Processing') as any;
-  
+  const latestJob = doc.jobs && doc.jobs.length > 0 ? doc.jobs[0] : null;
+  const rawStatus = latestJob?.status || 'READY';
+  const status = (rawStatus === 'COMPLETED' || rawStatus === 'READY' ? 'Ready' : rawStatus === 'FAILED' || rawStatus === 'PARTIALLY_FAILED' ? 'Failed' : 'Processing') as any;
+  const isRetryable = rawStatus === 'FAILED' || rawStatus === 'PARTIALLY_FAILED' || rawStatus === 'ERROR';
+  const reprocessMutation = useReprocessDocument();
+
+  const handleRetry = () => {
+    if (reprocessMutation.isPending || !doc.id) return;
+    reprocessMutation.mutate(doc.id);
+  };
+
   return (
     <div>
       <SectionHeader title="AI Knowledge Base" icon={<BrainCircuit size={14} className="text-muted-foreground" />} />
       <div className="grid grid-cols-2 gap-x-4">
         <DetailRow label="Latest Job Status" value={<AIStatusBadge status={status} />} />
-        {doc.jobs && doc.jobs[0]?.error && (
+        {latestJob?.error && (
           <div className="col-span-2 mt-2">
-            <span className="text-xs text-red-600">Error: {doc.jobs[0].error}</span>
+            <span className="text-xs text-red-600 block">Error: {latestJob.error}</span>
+          </div>
+        )}
+        {isRetryable && (
+          <div className="col-span-2 mt-3">
+            <button
+              type="button"
+              onClick={handleRetry}
+              disabled={reprocessMutation.isPending}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-md text-xs font-medium hover:bg-amber-700 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={reprocessMutation.isPending ? 'animate-spin' : ''} />
+              {reprocessMutation.isPending ? 'Retrying Ingestion...' : 'Retry Processing'}
+            </button>
+            {reprocessMutation.isError && (
+              <span className="text-[11px] text-red-500 font-medium mt-1 block">
+                Failed to trigger retry: {(reprocessMutation.error as any)?.message || 'Server error'}
+              </span>
+            )}
           </div>
         )}
       </div>

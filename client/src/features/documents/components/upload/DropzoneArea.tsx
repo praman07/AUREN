@@ -35,13 +35,13 @@ export const DropzoneArea: React.FC = () => {
         multiple 
         className="hidden" 
         onChange={handleChange}
-        accept=".pdf,.docx,.txt,.md,.csv"
+        accept=".pdf,.docx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff,.svg,image/*"
       />
       <div className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center mb-3 shadow-sm group-hover:scale-105 transition-transform">
         <UploadCloud size={20} className="text-muted-foreground" />
       </div>
       <p className="text-sm font-medium text-foreground">Click to upload or drag and drop</p>
-      <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, TXT, MD, CSV (max. 50MB)</p>
+      <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, TXT, MD, CSV, Images (max. 50MB)</p>
     </div>
   );
 };

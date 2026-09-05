@@ -28,7 +28,7 @@ export class ProcessingStateMachine {
     [PipelineState.EMBEDDING_PENDING]: [PipelineState.EMBEDDING_COMPLETED, PipelineState.PARTIALLY_FAILED, PipelineState.CANCELLED],
     [PipelineState.EMBEDDING_COMPLETED]: [PipelineState.INDEXING_PENDING, PipelineState.CANCELLED],
     [PipelineState.INDEXING_PENDING]: [PipelineState.READY, PipelineState.PARTIALLY_FAILED, PipelineState.CANCELLED],
-    [PipelineState.READY]: [],
+    [PipelineState.READY]: [PipelineState.CHUNKING_PENDING, PipelineState.EMBEDDING_PENDING, PipelineState.INDEXING_PENDING, PipelineState.PARTIALLY_FAILED, PipelineState.FAILED], // Allow reprocessing/reindexing
     [PipelineState.FAILED]: [PipelineState.QUEUED], // Allow retry/resume
     [PipelineState.PARTIALLY_FAILED]: [PipelineState.CHUNKING_PENDING, PipelineState.EMBEDDING_PENDING, PipelineState.INDEXING_PENDING], // Allow resume
     [PipelineState.CANCELLED]: [PipelineState.QUEUED] // Allow restart

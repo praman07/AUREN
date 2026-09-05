@@ -2,6 +2,7 @@ import { PipelineEventType, PipelineEventPayload } from '../../domain/events/Pip
 import { PipelineState } from '../../domain/state/ProcessingStateMachine';
 import { PipelineStatusService } from './PipelineStatusService';
 import { QueueManager } from '../../infrastructure/queue/QueueManager';
+import { prisma } from '../../infrastructure/database/prisma';
 
 export class DocumentProcessingOrchestrator {
   constructor(
@@ -83,6 +84,57 @@ export class DocumentProcessingOrchestrator {
     // E.g. If FAILED but we know it finished OCR, jump straight to CHUNKING_PENDING
     // (Requires looking up the last successful processing job in reality)
     console.log(`Resuming pipeline for ${documentId} from state ${currentState}`);
+  }
+
+  public async reprocessFailedDocument(documentId: string, organizationId: string): Promise<{ status: string; chunksReset: number }> {
+    const docVersion = await prisma.documentVersion.findFirst({
+      where: { documentId, deletedAt: null },
+      orderBy: { version: 'desc' }
+    });
+
+    if (!docVersion) {
+      throw new Error(`No active document version found for document ${documentId}`);
+    }
+
+    // Reset chunks with FAILED embedding status back to PENDING
+    const resetResult = await prisma.documentChunk.updateMany({
+      where: {
+        versionId: docVersion.id,
+        embeddingStatus: 'FAILED'
+      },
+      data: {
+        embeddingStatus: 'PENDING'
+      }
+    });
+
+    const payload: PipelineEventPayload = {
+      documentId,
+      versionId: docVersion.id,
+      organizationId
+    };
+
+    const totalChunks = await prisma.documentChunk.count({ where: { versionId: docVersion.id } });
+    const pendingChunks = await prisma.documentChunk.count({ where: { versionId: docVersion.id, embeddingStatus: 'PENDING' } });
+    const completedChunks = await prisma.documentChunk.count({ where: { versionId: docVersion.id, embeddingStatus: 'COMPLETED' } });
+
+    if (totalChunks === 0) {
+      await this.startPipeline(payload);
+      return { status: 'RESTARTED_FROM_OCR', chunksReset: 0 };
+    }
+
+    if (pendingChunks > 0) {
+      const s1 = await this.statusService.transitionState(documentId, organizationId, PipelineState.EMBEDDING_PENDING);
+      await this.queueManager.embeddingQueue.add('generate-embeddings', payload);
+      return { status: 'EMBEDDING_RETRIGGERED', chunksReset: resetResult.count };
+    }
+
+    if (completedChunks > 0) {
+      const s1 = await this.statusService.transitionState(documentId, organizationId, PipelineState.INDEXING_PENDING);
+      await this.queueManager.qdrantIndexingQueue.add('index-vectors', payload);
+      return { status: 'INDEXING_RETRIGGERED', chunksReset: 0 };
+    }
+
+    return { status: 'NO_ACTION_REQUIRED', chunksReset: 0 };
   }
 
   public async cancelPipeline(documentId: string, organizationId: string): Promise<void> {

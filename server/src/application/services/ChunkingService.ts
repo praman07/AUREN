@@ -36,15 +36,22 @@ export class ChunkingService {
         throw new Error('Chunking failed: raw text contains unparsed PDF binary header (%PDF-)');
       }
 
-      // Prepare RBAC metadata
-      const rbacMetadata = {
+      const mimeType = docVersion.document.mimeType;
+      const isImage = mimeType?.startsWith('image/') ?? false;
+
+      // Prepare RBAC and Visual Metadata
+      const baseMetadata = {
         visibility: docVersion.document.visibility,
         ownerId: docVersion.document.ownerId,
         departmentId: docVersion.document.departmentId,
         allowedRoles: docVersion.document.allowedRoles,
         allowedUsers: docVersion.document.allowedUsers,
         deniedRoles: docVersion.document.deniedRoles,
-        deniedUsers: docVersion.document.deniedUsers
+        deniedUsers: docVersion.document.deniedUsers,
+        ...(isImage ? {
+          isVisual: true,
+          mimeType
+        } : {})
       };
 
       // 2. Detect Sections (Stubbed logic, but using real text)
@@ -59,7 +66,7 @@ export class ChunkingService {
         semanticBoundaries: true
       });
 
-      const chunks = strategy.generateChunks(sections, payload.documentId, payload.versionId, payload.organizationId, rbacMetadata);
+      const chunks = strategy.generateChunks(sections, payload.documentId, payload.versionId, payload.organizationId, baseMetadata);
 
       // 4. Persist Chunks in a Transaction to ensure consistency
       // Delete existing pending chunks for this version (idempotency)

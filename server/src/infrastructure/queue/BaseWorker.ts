@@ -6,7 +6,11 @@ export abstract class BaseWorker<T> {
   protected worker: Worker;
 
   constructor(protected readonly queueName: string) {
-    this.worker = new Worker(queueName, this.processJob.bind(this), { connection: redisConnection });
+    this.worker = new Worker(queueName, this.processJob.bind(this), {
+      connection: redisConnection,
+      lockDuration: 300000, // 5 minutes lock duration for long LLM/VLM tasks
+      stalledInterval: 300000 // 5 minutes check interval
+    });
     
     this.worker.on('completed', this.onCompleted.bind(this));
     this.worker.on('failed', this.onFailed.bind(this));
@@ -21,10 +25,10 @@ export abstract class BaseWorker<T> {
     }
 
     // 2. Execute concrete business logic
-    return await this.handle(job.data);
+    return await this.handle(job.data, job);
   }
 
-  protected abstract handle(data: T): Promise<any>;
+  protected abstract handle(data: T, job?: Job<T>): Promise<any>;
 
   private async onCompleted(job: Job) {
     const payload = job.data as any;

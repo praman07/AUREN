@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Document } from '../../api/documentQueries';
-import { FileText, MoreHorizontal } from 'lucide-react';
+import { FileText, FileImage, MoreHorizontal } from 'lucide-react';
 import { ClassificationBadge, AIStatusBadge, ScopeBadge } from '../ui/DocumentStatusBadges';
 
 export const columns: ColumnDef<Document>[] = [
@@ -29,12 +29,21 @@ export const columns: ColumnDef<Document>[] = [
   {
     accessorKey: 'title',
     header: 'Document Name',
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 font-medium w-[250px] truncate">
-        <FileText size={14} className="text-muted-foreground shrink-0" />
-        <span className="truncate">{row.getValue('title')}</span>
-      </div>
-    ),
+    cell: ({ row }) => {
+      const mimeType = row.original.mimeType || '';
+      const title = (row.getValue('title') as string) || '';
+      const isImage = mimeType.startsWith('image/') || /\.(png|jpg|jpeg|webp|gif|bmp|tiff|svg)$/i.test(title);
+      return (
+        <div className="flex items-center gap-2 font-medium w-[250px] truncate">
+          {isImage ? (
+            <FileImage size={14} className="text-blue-500 shrink-0" />
+          ) : (
+            <FileText size={14} className="text-muted-foreground shrink-0" />
+          )}
+          <span className="truncate">{title}</span>
+        </div>
+      );
+    }
   },
   {
     id: 'owner',

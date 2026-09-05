@@ -7,6 +7,9 @@ import { CreateDocumentDTO, UpdateDocumentDTO } from '../dtos/DocumentDTOs';
 import { NotFoundException } from '../../domain/exceptions/NotFoundException';
 import { ForbiddenException } from '../../domain/exceptions/ForbiddenException';
 import { DocumentAccessPolicy, AccessSubject } from '../../domain/security/DocumentAccessPolicy';
+import { IStorageProvider } from '../../infrastructure/storage/IStorageProvider';
+import { LocalStorageProvider } from '../../infrastructure/storage/LocalStorageProvider';
+import { prisma } from '../../infrastructure/database/prisma';
 import { QdrantVectorStoreProvider } from '../../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider';
 
 export class DocumentService {
@@ -14,7 +17,8 @@ export class DocumentService {
     private readonly documentRepository: IDocumentRepository,
     private readonly auditLogRepository: IAuditLogRepository,
     private readonly unitOfWork: UnitOfWork,
-    private readonly eventPublisher: IEventPublisher
+    private readonly eventPublisher: IEventPublisher,
+    private readonly storageProvider?: IStorageProvider
   ) {}
 
   async getDocuments(requester: AccessSubject, skip = 0, take = 50): Promise<Document[]> {
@@ -194,6 +198,28 @@ export class DocumentService {
 
       return await tx.document.findFirst({ where: { id, organizationId: requester.organizationId, deletedAt: null } });
     }) as Document;
+  }
+
+  async getDocumentFile(id: string, versionId: string, requester: AccessSubject): Promise<{ buffer: Buffer; mimeType: string; filename: string }> {
+    const doc = await this.documentRepository.findByTenantAndId(id, requester.organizationId);
+    if (!doc) throw new NotFoundException('Document', id);
+    if (!DocumentAccessPolicy.canAccess(requester, doc)) {
+      throw new ForbiddenException('You do not have access to this document');
+    }
+
+    const docVersion = await prisma.documentVersion.findFirst({
+      where: { id: versionId, documentId: id, deletedAt: null }
+    });
+    if (!docVersion) throw new NotFoundException('DocumentVersion', versionId);
+
+    const provider = this.storageProvider || new LocalStorageProvider();
+    const buffer = await provider.download(docVersion.s3Key);
+
+    return {
+      buffer,
+      mimeType: doc.mimeType || 'application/octet-stream',
+      filename: doc.title || 'file'
+    };
   }
 
   private isOwnerOrAdmin(requester: AccessSubject, doc: Document): boolean {

@@ -40,5 +40,12 @@ export const DocumentIdParamSchema = z.object({
   params: z.object({ id: z.string().uuid() }),
 });
 
+export const DocumentVersionFileParamSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+    versionId: z.string().uuid(),
+  }),
+});
+
 export type CreateDocumentDTO = z.infer<typeof CreateDocumentSchema>['body'];
 export type UpdateDocumentDTO = z.infer<typeof UpdateDocumentSchema>['body'];

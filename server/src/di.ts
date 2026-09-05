@@ -44,7 +44,7 @@ export const orchestrator = new DocumentProcessingOrchestrator(pipelineStatusSer
 export const eventPublisher = new LocalEventPublisher(orchestrator);
 
 // Services
-export const documentService = new DocumentService(documentRepository, auditLogRepository, unitOfWork, eventPublisher);
+export const documentService = new DocumentService(documentRepository, auditLogRepository, unitOfWork, eventPublisher, storageProvider);
 export const userService = new UserService(userRepository, unitOfWork, eventPublisher);
 export const uploadService = new UploadService(storageProvider, documentRepository, documentVersionRepository, auditLogRepository, unitOfWork, eventPublisher);
 export const ocrService = new OcrService(providerFactory, orchestrator, storageProvider);

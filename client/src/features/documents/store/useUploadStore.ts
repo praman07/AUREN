@@ -47,7 +47,7 @@ export const useUploadStore = create<UploadState>((set) => ({
   })),
   
   addFiles: (newFiles) => {
-    const validExtensions = ['pdf', 'docx', 'txt', 'md', 'csv'];
+    const validExtensions = ['pdf', 'docx', 'txt', 'md', 'csv', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'tiff', 'svg'];
     
     const mappedFiles: UploadFile[] = newFiles.map((file) => {
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
