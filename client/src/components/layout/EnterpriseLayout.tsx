@@ -1,47 +1,73 @@
-import React from 'react';
-import { Search } from 'lucide-react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { Sidebar } from './Sidebar';
-import { Button } from '../ui/button';
+import React, { useState, useEffect } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { LeftRail } from '../navigation/LeftRail';
+import { TopHeader } from '../navigation/TopHeader';
 import { UploadDialog } from '../../features/documents/components/upload/UploadDialog';
 import { DocumentDetailsDrawer } from '../../features/documents/components/details/DocumentDetailsDrawer';
 
 export const EnterpriseLayout: React.FC = () => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const location = useLocation();
   const navigate = useNavigate();
 
+  // Global keyboard shortcut: Cmd+B or Ctrl+B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setIsSidebarCollapsed((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const isChatView = location.pathname.startsWith('/chat');
+  const isCollaborationView = location.pathname.startsWith('/collaboration');
+  const isFullBleedView = isChatView || isCollaborationView;
+
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden font-sans antialiased selection:bg-blue-600 selection:text-white bg-white text-slate-900">
-      
-      {/* Floating Center-Bottom Navigation Bar */}
-      <Sidebar />
+    <div className="min-h-screen bg-[#FDFDFD] dark:bg-[#0A0B0D] text-neutral-900 dark:text-neutral-100 flex transition-colors duration-200 antialiased selection:bg-neutral-200 dark:selection:bg-neutral-800">
+      {/* 1. Left Rail Navigation */}
+      <LeftRail
+        isMobileOpen={isMobileNavOpen}
+        onCloseMobile={() => setIsMobileNavOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+        onNewChat={() => navigate('/chat')}
+      />
 
-      {/* Top Header: Search Only (No Logo, No Extra Widgets) */}
-      <header className="h-16 flex items-center justify-center px-6 shrink-0 z-40 bg-white border-b border-slate-100">
-        <Button
-          variant="outline"
-          onClick={() => navigate('/search')}
-          className="w-full max-w-md flex items-center justify-between text-xs text-slate-500 hover:text-slate-900 bg-slate-50/80 hover:bg-slate-100 border-slate-200/90 rounded-full h-10 px-4 transition-all shadow-2xs"
+      {/* 2. Main Content View Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Top Header */}
+        {!isCollaborationView && (
+          <TopHeader
+            onOpenMobileNav={() => setIsMobileNavOpen(true)}
+            onOpenSearch={() => navigate('/search')}
+            onNavigateSettings={() => navigate('/settings')}
+            isSidebarCollapsed={isSidebarCollapsed}
+            onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+          />
+        )}
+
+        {/* Dynamic Route View */}
+        <main
+          className={`flex-1 ${
+            isFullBleedView
+              ? 'overflow-hidden flex flex-col w-full h-full'
+              : 'overflow-y-auto p-6 sm:p-8 lg:p-10'
+          }`}
         >
-          <div className="flex items-center gap-2">
-            <Search size={15} className="text-blue-600" />
-            <span className="font-medium">Search workspace...</span>
+          <div className={`${isFullBleedView ? 'w-full h-full' : 'max-w-7xl mx-auto w-full h-full flex flex-col gap-8'}`}>
+            <Outlet />
           </div>
-          <kbd className="font-mono text-[10px] bg-white border border-slate-200 text-slate-400 px-2 py-0.5 rounded-md shadow-2xs">Ctrl K</kbd>
-        </Button>
-      </header>
+        </main>
+      </div>
 
-      {/* Main Content Area - pb-24 ensures content never gets hidden under fixed bottom navbar */}
-      <main className="flex-1 overflow-auto custom-scrollbar p-6 pb-28">
-        <div className="max-w-7xl mx-auto h-full">
-          <Outlet />
-        </div>
-      </main>
-
-      {/* Global Dialogs & Drawers */}
+      {/* Global Drawers & Dialogs */}
       <UploadDialog />
       <DocumentDetailsDrawer />
     </div>
   );
 };
-
-

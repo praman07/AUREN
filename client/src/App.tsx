@@ -19,10 +19,24 @@ import { RequireAuth, PublicOnly, RequireSuperAdmin } from './core/auth/guards/A
 import { LoginForm } from './features/authentication/components/LoginForm';
 import { SignUpForm } from './features/authentication/components/SignUpForm';
 import { OnboardingPage } from './features/onboarding/OnboardingPage';
+import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { CollaborationProvider } from './context/CollaborationContext';
 
 import { MockClerkProvider } from './core/auth/providers/MockClerkProvider';
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+import { CollaborationView } from './components/collaboration/CollaborationView';
+import { ConnectorsView } from './components/connectors/ConnectorsView';
+import { RbacView } from './components/rbac/RbacView';
+import { AgentsWorkspace } from './components/agents/AgentsWorkspace';
+import { ArchitectureReviewerView } from './components/agents/ArchitectureReviewerView';
+import { KnowledgeCuratorView } from './components/agents/KnowledgeCuratorView';
+import { OrganizationalMemoryView } from './components/agents/OrganizationalMemoryView';
+import { SuperAdminPanel } from './components/superadmin/SuperAdminPanel';
+import { ProfileView } from './components/profile/ProfileView';
 
 function App() {
   const content = (
@@ -41,12 +55,21 @@ function App() {
         <Route path="documents/:scopeRoute" element={<DocumentsPage />} />
         <Route path="docs" element={<Navigate to="/documents/org" replace />} />
         <Route path="docs/:scopeRoute" element={<DocumentsPage />} />
+        <Route path="library" element={<Navigate to="/documents/org" replace />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/*" element={<SettingsPage />} />
+        <Route path="profile" element={<ProfileView initialSubTab="profile" />} />
         <Route path="integrations" element={<SettingsPage />} />
         <Route path="integrations/*" element={<SettingsPage />} />
+        <Route path="collaboration" element={<CollaborationView />} />
+        <Route path="connectors" element={<ConnectorsView connectors={[]} onSyncConnector={async () => {}} onUpdatePolicy={async () => {}} />} />
+        <Route path="rbac" element={<RbacView />} />
+        <Route path="agents" element={<AgentsWorkspace />} />
+        <Route path="architecture-reviewer" element={<ArchitectureReviewerView documents={[]} />} />
+        <Route path="knowledge-curator" element={<KnowledgeCuratorView documents={[]} />} />
+        <Route path="organizational-memory" element={<OrganizationalMemoryView documents={[]} />} />
         
         {/* Protected Super Admin Routes */}
         <Route path="memory" element={<RequireSuperAdmin><MemoryConsolePage /></RequireSuperAdmin>} />
@@ -55,6 +78,8 @@ function App() {
         <Route path="departments" element={<RequireSuperAdmin><DepartmentsSecurityPage /></RequireSuperAdmin>} />
         <Route path="audit-logs" element={<RequireSuperAdmin><AuditLogsPage /></RequireSuperAdmin>} />
         <Route path="jobs" element={<RequireSuperAdmin><ProcessingJobsPage /></RequireSuperAdmin>} />
+        <Route path="super-admin" element={<RequireSuperAdmin><SuperAdminPanel /></RequireSuperAdmin>} />
+        <Route path="superadmin" element={<RequireSuperAdmin><SuperAdminPanel /></RequireSuperAdmin>} />
         
         <Route path="admin/users" element={<Navigate to="/users" replace />} />
         <Route path="admin/departments" element={<Navigate to="/departments" replace />} />
@@ -62,7 +87,7 @@ function App() {
         <Route path="admin/jobs" element={<Navigate to="/jobs" replace />} />
         
         <Route path="*" element={
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-12">
             <h2 className="text-lg font-semibold text-foreground mb-2">Module Not Found</h2>
             <p className="text-sm">This section is currently under construction.</p>
           </div>
@@ -72,17 +97,31 @@ function App() {
   );
 
   return (
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        {CLERK_PUBLISHABLE_KEY ? (
-          <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-            <EnterpriseAuthProvider>{content}</EnterpriseAuthProvider>
-          </ClerkProvider>
-        ) : (
-          <MockClerkProvider>{content}</MockClerkProvider>
-        )}
-      </QueryClientProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <QueryClientProvider client={queryClient}>
+          {CLERK_PUBLISHABLE_KEY ? (
+            <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+              <EnterpriseAuthProvider>
+                <AuthProvider>
+                  <NotificationProvider>
+                    <CollaborationProvider>{content}</CollaborationProvider>
+                  </NotificationProvider>
+                </AuthProvider>
+              </EnterpriseAuthProvider>
+            </ClerkProvider>
+          ) : (
+            <MockClerkProvider>
+              <AuthProvider>
+                <NotificationProvider>
+                  <CollaborationProvider>{content}</CollaborationProvider>
+                </NotificationProvider>
+              </AuthProvider>
+            </MockClerkProvider>
+          )}
+        </QueryClientProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 
