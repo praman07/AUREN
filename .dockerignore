@@ -1,0 +1,16 @@
+node_modules
+server/models
+server/node_modules
+server/qdrant_storage
+server/pgsql
+server/pgdata
+server/storage
+server/searxng
+server/qdrant.exe
+server/logs
+server/scratch
+client/node_modules
+client/dist
+*.gguf
+*.exe
+*.log

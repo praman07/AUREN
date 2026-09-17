@@ -1,0 +1,15 @@
+node_modules
+dist
+models
+qdrant_storage
+qdrant.exe
+pgsql
+pgdata
+storage
+searxng
+logs
+scratch
+*.log
+*.gguf
+*.exe
+*.dll

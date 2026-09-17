@@ -41,11 +41,6 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   searxng:
     image: searxng/searxng:latest
@@ -111,7 +106,7 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:5000/health || exit 1"]
       interval: 10s
@@ -125,6 +120,7 @@ services:
     container_name: auren-frontend
     restart: unless-stopped
     ports:
+      - "5174:80"
       - "80:80"
     depends_on:
       backend:
