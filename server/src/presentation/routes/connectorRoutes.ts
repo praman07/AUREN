@@ -7,12 +7,16 @@ import { ConnectorService } from '../../application/connectors/ConnectorService'
 import { connectorService } from '../../di';
 import { ConnectConnectorSchema, ConnectorIdParamSchema, SelectGitHubReposSchema } from '../../application/dtos/ConnectorDTOs';
 
+import { GitHubWebhookController } from '../controllers/GitHubWebhookController';
+
 const router = Router();
 const controller = new ConnectorController(connectorService as ConnectorService);
+const webhookController = new GitHubWebhookController(connectorService as ConnectorService);
 
-// OAuth callback endpoints (unauthenticated browser redirect endpoints)
+// Unauthenticated public webhook & callback endpoints
 router.get('/google/callback', controller.handleGoogleCallback);
 router.get('/github/callback', controller.handleGitHubCallback);
+router.post('/github/webhook', webhookController.handleWebhook);
 
 router.use(requireAuth);
 

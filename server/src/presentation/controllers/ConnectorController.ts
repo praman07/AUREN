@@ -140,13 +140,43 @@ export class ConnectorController {
   public disconnect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const account = await this.assertAccess(req, this.paramId(req));
-      // Revoke stored credentials entirely — the account row is removed and
-      // previously ingested documents keep their metadata (FK is SetNull).
+      const orgId = account.organizationId;
+      const collectionName = `org_${orgId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
+
+      // Objective 4 & 10: Find and purge all indexed documents & Qdrant vectors for this connected account
+      const docsToPurge = await prisma.document.findMany({
+        where: { connectedAccountId: account.id, deletedAt: null },
+        select: { id: true, externalId: true }
+      });
+
+      if (docsToPurge.length > 0) {
+        const docIds = docsToPurge.map(d => d.id);
+        await prisma.document.updateMany({
+          where: { id: { in: docIds } },
+          data: { deletedAt: new Date() }
+        });
+
+        try {
+          const { QdrantVectorStoreProvider } = await import('../../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider');
+          const qdrant = new QdrantVectorStoreProvider();
+          for (const d of docsToPurge) {
+            await qdrant.deleteDocument(collectionName, d.id);
+          }
+        } catch (qErr: any) {
+          console.error(`[ConnectorController] Vector purge error during disconnect for org ${orgId}:`, qErr?.message || qErr);
+        }
+      }
+
+      // Revoke stored credentials and remove connected account
       await prisma.connectedAccount.delete({ where: { id: account.id } });
 
-      await this.audit(req, 'DELETE', account.id, { action: 'CONNECTOR_DISCONNECTED', provider: account.provider });
+      await this.audit(req, 'DELETE', account.id, {
+        action: 'CONNECTOR_DISCONNECTED',
+        provider: account.provider,
+        purgedDocumentsCount: docsToPurge.length
+      });
 
-      res.status(200).json({ success: true, message: 'Connector disconnected' });
+      res.status(200).json({ success: true, message: 'Connector disconnected and associated knowledge purged' });
     } catch (error) {
       next(error);
     }
@@ -513,6 +543,45 @@ export class ConnectorController {
         }
       }
 
+      // Objective 4: Unselected repository purge — identify documents linked to this account whose externalId repo is no longer in selectedRepos
+      const selectedReposSet = new Set(uniqueRepos.map(r => r.toLowerCase()));
+      const existingDocs = await prisma.document.findMany({
+        where: { connectedAccountId: account.id, deletedAt: null },
+        select: { id: true, externalId: true }
+      });
+
+      const unselectedDocIds: string[] = [];
+      for (const doc of existingDocs) {
+        if (doc.externalId) {
+          // externalId format: owner/repo/path/to/file or owner/repo
+          const parts = doc.externalId.split('/');
+          if (parts.length >= 2) {
+            const repoFullName = `${parts[0]}/${parts[1]}`.toLowerCase();
+            if (!selectedReposSet.has(repoFullName)) {
+              unselectedDocIds.push(doc.id);
+            }
+          }
+        }
+      }
+
+      if (unselectedDocIds.length > 0) {
+        await prisma.document.updateMany({
+          where: { id: { in: unselectedDocIds } },
+          data: { deletedAt: new Date() }
+        });
+
+        const collectionName = `org_${account.organizationId.replace(/[^a-zA-Z0-9]/g, '_')}_docs`;
+        try {
+          const { QdrantVectorStoreProvider } = await import('../../infrastructure/providers/adapters/vector/QdrantVectorStoreProvider');
+          const qdrant = new QdrantVectorStoreProvider();
+          for (const docId of unselectedDocIds) {
+            await qdrant.deleteDocument(collectionName, docId);
+          }
+        } catch (qErr: any) {
+          console.error(`[ConnectorController] Vector purge error during repo unselection for org ${account.organizationId}:`, qErr?.message || qErr);
+        }
+      }
+
       // Update metadata on ConnectedAccount
       const currentMeta = (account.metadata as Record<string, any>) || {};
       const updatedMeta = {
@@ -529,6 +598,7 @@ export class ConnectorController {
       await this.audit(req, 'UPDATE', account.id, {
         action: 'GITHUB_REPOS_SELECTED',
         selectedRepos: uniqueRepos,
+        purgedUnselectedDocumentsCount: unselectedDocIds.length
       });
 
       res.status(200).json({
