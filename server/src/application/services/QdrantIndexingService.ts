@@ -210,6 +210,53 @@ export class QdrantIndexingService {
         }
       });
 
+      // 5b. Generate Automatic Document Intelligence Overview
+      try {
+        const fullSampleText = chunks.slice(0, 5).map(c => c.text).join('\n');
+        const wordCount = fullSampleText.split(/\s+/).length;
+        const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+
+        let docType = 'Technical Document';
+        const lowerTitle = (document.title || '').toLowerCase();
+        const lowerText = fullSampleText.toLowerCase();
+
+        if (lowerTitle.endsWith('.pdf') || (document.mimeType || '').includes('pdf')) docType = 'PDF Document';
+        else if (lowerTitle.includes('handbook') || lowerTitle.includes('policy')) docType = 'Policy & Guidelines';
+        else if (lowerTitle.includes('architecture') || lowerTitle.includes('design')) docType = 'Engineering Architecture';
+        else if (lowerTitle.includes('resume') || lowerTitle.includes('cv')) docType = 'Personal Resume';
+        else if (lowerTitle.includes('notes') || lowerTitle.includes('secret')) docType = 'Personal Notes';
+        else if (lowerTitle.endsWith('.ts') || lowerTitle.endsWith('.js') || lowerTitle.endsWith('.py')) docType = 'Source Code';
+
+        const sentences = fullSampleText.replace(/\n+/g, ' ').split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 10);
+        const executiveSummary = sentences.slice(0, 3).join(' ') || `${document.title} containing enterprise indexed knowledge.`;
+
+        const topicCandidates = ['Architecture', 'Security', 'Policy', 'Engineering', 'API', 'Deployment', 'Finance', 'Strategy', 'Guidelines', 'RBAC'];
+        const matchedTopics = topicCandidates.filter(t => lowerText.includes(t.toLowerCase()));
+        if (matchedTopics.length === 0) matchedTopics.push('Enterprise Knowledge');
+
+        const techCandidates = ['Node.js', 'TypeScript', 'PostgreSQL', 'Qdrant', 'Docker', 'Redis', 'REST', 'JWT', 'React', 'Python'];
+        const matchedTech = techCandidates.filter(t => lowerText.includes(t.toLowerCase()));
+
+        const summaryData = {
+          title: document.title,
+          documentType: docType,
+          executiveSummary,
+          keyTopics: matchedTopics,
+          readingTimeMinutes,
+          entities: matchedTopics,
+          technologies: matchedTech,
+          keywords: matchedTopics,
+          generatedAt: new Date().toISOString()
+        };
+
+        await prisma.document.update({
+          where: { id: payload.documentId },
+          data: { summary: summaryData as any }
+        });
+      } catch (sumErr: any) {
+        console.warn(`[QdrantIndexingService] Warning generating summary for doc ${payload.documentId}:`, sumErr?.message || sumErr);
+      }
+
       // 6. Emit INDEXING_COMPLETED
       await this.orchestrator.handleEvent(PipelineEventType.INDEXING_COMPLETED, payload);
 

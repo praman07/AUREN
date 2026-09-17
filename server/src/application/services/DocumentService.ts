@@ -36,6 +36,18 @@ export class DocumentService {
     return doc;
   }
 
+  async getRelatedDocuments(id: string, requester: AccessSubject): Promise<any[]> {
+    const doc = await this.getDocumentById(id, requester);
+    const candidateDocs = await this.documentRepository.findMany(
+      { organizationId: requester.organizationId, deletedAt: null },
+      0,
+      20
+    );
+    return candidateDocs
+      .filter((d) => d.id !== id && DocumentAccessPolicy.canAccess(requester, d))
+      .slice(0, 4);
+  }
+
   async createDocument(requester: AccessSubject, data: CreateDocumentDTO): Promise<Document> {
     return await this.unitOfWork.execute(async (tx) => {
       const docScope = data.scope || (data.visibility === 'PRIVATE' ? 'PERSONAL' : 'ORGANIZATION');

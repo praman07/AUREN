@@ -32,6 +32,13 @@ export class DocumentController {
     } catch (error) { next(error); }
   };
 
+  public getRelatedDocuments = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const docs = await this.documentService.getRelatedDocuments(req.params.id as string, this.requester(req));
+      res.status(200).json({ success: true, data: docs });
+    } catch (error) { next(error); }
+  };
+
   public createDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const doc = await this.documentService.createDocument(
