@@ -1,0 +1,6 @@
+{
+  "name": "AUREN - Knowledge Workspace",
+  "description": "Ultra-premium, minimalistic AI knowledge assistant and research workspace with document intelligence, source grounding, and multi-source connectors.",
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
