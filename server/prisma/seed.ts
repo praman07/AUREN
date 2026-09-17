@@ -31,10 +31,10 @@ async function generateEmbeddingSafe(text: string): Promise<number[]> {
     console.warn(`⚠️ Ollama embedding unavailable for text ("${text.substring(0, 30)}..."). Generating deterministic 4096-dim vector.`);
   }
 
-  // Deterministic 4096-dim fallback vector based on text hash
+  // Deterministic 768-dim fallback vector based on text hash
   const hash = crypto.createHash('sha256').update(text).digest();
-  const vec = new Array(4096).fill(0);
-  for (let i = 0; i < 4096; i++) {
+  const vec = new Array(768).fill(0);
+  for (let i = 0; i < 768; i++) {
     vec[i] = (hash[i % hash.length] / 255.0) * 2.0 - 1.0;
   }
   return vec;
@@ -251,7 +251,12 @@ async function main() {
     { key: 'kavya', email: 'kavya.malhotra@northstar-test.local', first: 'Kavya', last: 'Malhotra', dept: 'Legal', role: 'Legal Counsel', superAdmin: false },
 
     // Super Admin
-    { key: 'superadmin', email: 'superadmin@northstar-test.local', first: 'Admin', last: 'Tester', dept: 'Executive', role: 'Super Admin', superAdmin: true }
+    { key: 'superadmin', email: 'superadmin@northstar-test.local', first: 'Admin', last: 'Tester', dept: 'Executive', role: 'Super Admin', superAdmin: true },
+
+    // Frontend Quick-Login Demo Accounts
+    { key: 'demoadmin', email: 'admin@ekos.app', first: 'System', last: 'Admin', dept: 'Executive', role: 'Super Admin', superAdmin: true, pass: 'admin12345' },
+    { key: 'demoalice', email: 'alice@ekos.app', first: 'Alice', last: 'Engineer', dept: 'Engineering', role: 'Senior Backend Engineer', superAdmin: false, pass: 'alice12345' },
+    { key: 'demobob', email: 'bob@ekos.app', first: 'Bob', last: 'HR', dept: 'Human Resources', role: 'HR Manager', superAdmin: false, pass: 'bob12345' }
   ];
 
   const northstarUsers: Record<string, any> = {};
@@ -259,6 +264,7 @@ async function main() {
     const userId = uuidFromKey(`user-northstar-${u.key}`);
     const deptObj = northstarDepts[u.dept];
     const roleObj = northstarRoles[u.role];
+    const userPassHash = u.pass ? PasswordService.hash(u.pass) : passwordHash;
 
     const user = await prisma.user.upsert({
       where: { id: userId },
@@ -268,7 +274,7 @@ async function main() {
         email: u.email,
         firstName: u.first,
         lastName: u.last,
-        passwordHash: passwordHash,
+        passwordHash: userPassHash,
         isSuperAdmin: u.superAdmin
       },
       create: {
@@ -278,7 +284,7 @@ async function main() {
         email: u.email,
         firstName: u.first,
         lastName: u.last,
-        passwordHash: passwordHash,
+        passwordHash: userPassHash,
         isSuperAdmin: u.superAdmin
       }
     });
@@ -699,7 +705,7 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\n🌱 [6/6] Processing Embeddings & Indexing into Qdrant...');
 
-  const vectorDim = 4096;
+  const vectorDim = 768;
   await qdrantProvider.ensureCollection(`org_${northstarOrg.id.replace(/-/g, '_')}_docs`, vectorDim);
   await qdrantProvider.ensureCollection(`org_${bluepeakOrg.id.replace(/-/g, '_')}_docs`, vectorDim);
 
