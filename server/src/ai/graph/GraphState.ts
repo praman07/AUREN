@@ -106,6 +106,7 @@ export interface AURENGraphState {
   validatedEvidence?: any[];
 
   fastRoutingTarget?: 'web' | 'rag' | 'none';
+  resolvedKnowledgeDocumentIds?: string[];
 }
 
 

@@ -151,6 +151,10 @@ const GraphAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
     default: () => undefined,
   }),
+  resolvedKnowledgeDocumentIds: Annotation<string[] | undefined>({
+    reducer: (x, y) => y ?? x,
+    default: () => undefined,
+  }),
 });
 
 export function isClarificationResponse(userQuery: string, messages: any[]): { isClarification: boolean; originalUserQuery?: string } {
@@ -470,10 +474,12 @@ Respond strictly in JSON format:
     console.warn(`[Search Necessity Classifier] LLM classification check failed: ${err.message}`);
   }
 
-  // If LLM fails, fallback based on intentCategory
-  const fallback = (state.intentCategory === 'INTERNAL_KNOWLEDGE' || state.intentCategory === 'MIXED') ? 'RAG' : 'WEB';
-  console.log(`[Search Necessity Classifier] LLM fallback to: ${fallback}`);
-  return { needsSearchOrRag: fallback as 'RAG' | 'WEB', llmCallsCount: 1 };
+  // Objective 7: Fix Vague Query -> Web Search Routing
+  // AUREN must NOT interpret uncertainty as permission to search the web.
+  // Fallback to RAG if internal knowledge intent, otherwise NONE (general LLM reasoning).
+  const fallback = (state.intentCategory === 'INTERNAL_KNOWLEDGE' || state.intentCategory === 'MIXED' || state.intentCategory === 'CASUAL') ? 'RAG' : 'NONE';
+  console.log(`[Search Necessity Classifier] Uncertainty fallback resolved to: ${fallback} (web search prevented on vague query)`);
+  return { needsSearchOrRag: fallback as 'RAG' | 'NONE' | 'WEB', llmCallsCount: 1 };
 }
 
 export class KnowledgeGraph {
@@ -917,6 +923,118 @@ Current User Query: "${rawQuery}"`;
         console.log(`[KnowledgeGraph] ⚡ FAST mode deterministic routing resolved: Target="${fastRoutingTarget}" based on IntentCategory="${state.intentCategory}" (0ms overhead)`);
       }
 
+      // ── Knowledge-Aware Catalog Pre-Routing ──────────────────────────
+      // Check if normalized query terms match an existing AUTHORIZED workspace document/entity.
+      // Explicit web search commands ("search the web", "look up online", "google", etc.) MUST win.
+      const isExplicitWebCommand = /\b(search the web|search web|use web|google|look up online|check online|find online|what does the internet say|on the web|web search)\b/i.test(state.userQuery || '');
+      
+      let knowledgeAwareMatchFound = false;
+      let matchedDocTitle = '';
+      const resolvedKnowledgeDocumentIds: string[] = [];
+
+      if (!isExplicitWebCommand && state.authContext?.organizationId) {
+        try {
+          const { prisma } = require('../../infrastructure/database/prisma');
+          const { DocumentAccessPolicy } = require('../../domain/security/DocumentAccessPolicy');
+
+          // Helper: Normalize strings for document identity matching (case, extension, separator insensitive)
+          const normalizeForIdentity = (str: string): string => {
+            if (!str) return '';
+            return str
+              .toLowerCase()
+              .replace(/\.[a-z0-9]+$/i, '')       // Strip extensions (.png, .pdf, .md, .ts, .json)
+              .replace(/[_.\-\/\\:]/g, ' ')        // Replace separators with spaces
+              .replace(/\s+/g, ' ')
+              .trim();
+          };
+
+          const normQuery = normalizeForIdentity(state.userQuery || '');
+          const queryWords = normQuery.split(' ').filter(w => w.length > 2);
+
+          if (normQuery.length >= 3 && queryWords.length > 0) {
+            // Fetch authorized catalog metadata for this tenant
+            const candidateDocs = await prisma.document.findMany({
+              where: {
+                organizationId: state.authContext.organizationId,
+                deletedAt: null
+              },
+              select: {
+                id: true,
+                title: true,
+                scope: true,
+                visibility: true,
+                ownerId: true,
+                departmentId: true,
+                allowedUsers: true,
+                allowedRoles: true,
+                allowedDepartments: true,
+                deniedUsers: true,
+                deniedRoles: true,
+                deniedDepartments: true,
+                externalId: true,
+                sourceUrl: true,
+                organizationId: true
+              },
+              take: 250
+            });
+
+            const subjectUser = {
+              id: state.authContext.userId,
+              organizationId: state.authContext.organizationId,
+              roles: state.authContext.roles || [],
+              departments: state.authContext.departmentId ? [state.authContext.departmentId] : [],
+              isSuperAdmin: !!state.authContext.isSuperAdmin
+            };
+
+            const authorizedDocs = candidateDocs.filter((doc: any) => DocumentAccessPolicy.canAccess(subjectUser, doc));
+
+            for (const doc of authorizedDocs) {
+              const rawTitle = doc.title || doc.externalId || '';
+              const normTitle = normalizeForIdentity(rawTitle);
+              const cleanTitle = normTitle.replace(/\b\d{6,}\b/g, '').replace(/\s+/g, ' ').trim();
+
+              if (normTitle.length >= 3) {
+                // Exact string match or significant token sequence match
+                if (normQuery.includes(normTitle) || normQuery.includes(cleanTitle) || (cleanTitle.length >= 3 && cleanTitle === normQuery)) {
+                  knowledgeAwareMatchFound = true;
+                  matchedDocTitle = doc.title;
+                  resolvedKnowledgeDocumentIds.push(doc.id);
+                } else {
+                  const titleWords = (cleanTitle || normTitle).split(' ').filter(w => w.length > 2);
+                  if (titleWords.length > 0) {
+                    const matchedWords = titleWords.filter(w => queryWords.includes(w));
+                    if (matchedWords.length >= Math.min(2, titleWords.length) && matchedWords.join(' ').length >= 4) {
+                      knowledgeAwareMatchFound = true;
+                      matchedDocTitle = doc.title;
+                      resolvedKnowledgeDocumentIds.push(doc.id);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (catErr: any) {
+          console.warn(`[KnowledgeGraph] ⚠ Knowledge-Aware catalog lookup warning: ${catErr.message}`);
+        }
+      }
+
+      if (knowledgeAwareMatchFound && resolvedKnowledgeDocumentIds.length > 0) {
+        const uniqueDocIds = Array.from(new Set(resolvedKnowledgeDocumentIds));
+        console.log(`[KnowledgeGraph] 🔍 Knowledge-Aware Pre-Routing: Matched authorized document "${matchedDocTitle}" (IDs: ${uniqueDocIds.join(', ')}) for query "${state.userQuery}" — routing to RAG`);
+        const durationMs = performance.now() - nodeStart;
+        callbacks?.onEvent?.({
+          type: 'node_timing',
+          data: { nodeName: 'routeQuery', durationMs, llmCallsCount: 0 }
+        });
+        return {
+          executionMode: resolvedMode,
+          intentCategory: 'INTERNAL_KNOWLEDGE',
+          fastRoutingTarget: 'rag',
+          useKnowledgeBase: true,
+          resolvedKnowledgeDocumentIds: uniqueDocIds
+        };
+      }
+
       // ── Auto-KB detection: smart document/filename recognition ──────────────────────────
       // If the user's query contains a filename or document reference, automatically
       // enable KB search without requiring the manual toggle to be on.
@@ -1258,7 +1376,7 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
       callbacks?.onEvent?.({ type: 'tool_call', data: { name: 'internal_knowledge', query: state.userQuery } });
 
       try {
-        const tool = createInternalKnowledgeTool(state.authContext);
+        const tool = createInternalKnowledgeTool(state.authContext, undefined, state.resolvedKnowledgeDocumentIds);
         const rawResult = await tool.invoke({ query: state.userQuery });
         const parsed = JSON.parse(rawResult);
 
@@ -1416,7 +1534,7 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
       callbacks?.onEvent?.({ type: 'node_execution', data: { nodeName: 'webSearch' } });
       callbacks?.onEvent?.({ type: 'research_started', data: { query: state.userQuery, strategy: state.researchStrategy || 'DEEP_RESEARCH' } });
 
-      if (state.mode === 'LOCAL' || !state.isWebAccessEnabled) {
+      if (!state.isWebAccessEnabled) {
         callbacks?.onEvent?.({
           type: 'tool_result',
           data: { name: 'web_search', count: 0, status: 'blocked_by_policy' }
@@ -1965,18 +2083,15 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
         }
       } else if (state.intentCategory === 'INTERNAL_KNOWLEDGE') {
         const isInternalError = state.internalKnowledgeStatus === 'error';
-        if (isInternalError) {
-          systemPrompt += `1. Authorized internal document retrieval system encountered an error or is offline.\n`;
-          systemPrompt += `2. You MUST inform the user: "I encountered an error retrieving documents from the internal knowledge base. Here is the general information I can provide based on pre-trained knowledge:" and then provide a helpful answer from your general pre-trained knowledge.\n`;
-        } else if (!hasInternalDocsForPrompt) {
-          systemPrompt += `1. Authorized internal document context is currently unavailable or returned 0 results.\n`;
-          systemPrompt += `2. You MUST gracefully fall back to your general pre-trained knowledge to answer the query, but make sure to note that no specific matching internal documents were found.\n`;
+        if (isInternalError || !hasInternalDocsForPrompt) {
+          systemPrompt += `1. Authorized internal document context is unavailable or returned 0 results.\n`;
+          systemPrompt += `2. You MUST state: "No relevant information was found in the authorized knowledge base." Do NOT use pre-trained knowledge or web search.\n`;
         } else {
           systemPrompt += `1. You MUST answer the user query ONLY using the AUTHORIZED INTERNAL CONTEXT document chunks provided below.\n`;
-          systemPrompt += `2. ABSOLUTE PROHIBITION: Do NOT use your pre-trained general knowledge to supplement, fill gaps, or infer anything not explicitly present in the retrieved document chunks. Pre-trained knowledge is entirely forbidden here.\n`;
+          systemPrompt += `2. ABSOLUTE PROHIBITION: Do NOT use your pre-trained general knowledge or web search to supplement, fill gaps, or infer anything not explicitly present in the retrieved document chunks. Pre-trained knowledge is entirely forbidden.\n`;
           systemPrompt += `3. Do NOT say you lack access to files — the document chunks are already injected into your context below. Read them directly.\n`;
-          systemPrompt += `4. If the retrieved document chunks do NOT contain information that answers the user's question, you MUST explicitly state: "The retrieved organization documents do not contain information about [topic]. I cannot provide an answer based solely on the available internal documents." Do NOT invent, infer, or approximate an answer.\n`;
-          systemPrompt += `5. When the chunks DO contain relevant information, quote or closely paraphrase the specific chunk content. Cite the document name and chunk index where possible.\n`;
+          systemPrompt += `4. If the retrieved document chunks do NOT contain information that answers the user's question, you MUST explicitly state: "No relevant information was found in the authorized knowledge base." Do NOT invent, infer, or approximate an answer, and do NOT mention general knowledge.\n`;
+          systemPrompt += `5. When the chunks DO contain relevant information, quote or closely paraphrase the specific chunk content.\n`;
         }
       } else if (state.intentCategory === 'MIXED') {
         const hasWebResults = state.webResults && state.webResults.length > 0;

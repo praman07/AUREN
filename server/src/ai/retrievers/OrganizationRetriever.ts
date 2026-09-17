@@ -25,6 +25,7 @@ export interface OrganizationRetrieverInput extends BaseRetrieverInput {
   similarityThreshold?: number;
   overrideScope?: 'PERSONAL' | 'ORGANIZATION';
   embeddingProvider?: IEmbeddingProvider;
+  targetDocumentIds?: string[];
 }
 
 export class OrganizationRetriever extends BaseRetriever {
@@ -38,6 +39,7 @@ export class OrganizationRetriever extends BaseRetriever {
   private topK: number;
   private similarityThreshold: number;
   private overrideScope?: 'PERSONAL' | 'ORGANIZATION';
+  private targetDocumentIds?: string[];
   private qdrantProvider: QdrantVectorStoreProvider;
   private embeddingProvider: IEmbeddingProvider;
 
@@ -47,6 +49,7 @@ export class OrganizationRetriever extends BaseRetriever {
     this.topK = fields.topK || 10;
     this.similarityThreshold = fields.similarityThreshold ?? 0.0;
     this.overrideScope = fields.overrideScope;
+    this.targetDocumentIds = fields.targetDocumentIds;
     this.qdrantProvider = new QdrantVectorStoreProvider();
     this.embeddingProvider = fields.embeddingProvider || new ProviderFactory().getEmbeddingProvider();
   }
@@ -98,6 +101,7 @@ export class OrganizationRetriever extends BaseRetriever {
       isSuperAdmin: this.authContext.isSuperAdmin,
       scope: effectiveScope,
       limit: candidateLimit,
+      targetDocumentIds: this.targetDocumentIds,
     });
 
     console.log(` -> PermissionFilter Output:\n${JSON.stringify(filter, null, 2)}`);
@@ -190,15 +194,35 @@ export class OrganizationRetriever extends BaseRetriever {
 
     console.log(` -> Post-Policy Authorized Candidates: ${authorizedCandidates.length}`);
 
-    // Minimum raw relevance gate: if the top candidate score is below 0.52, all candidates are irrelevant noise
+    // Helper: Normalize strings for document identity matching (case, extension, separator insensitive)
+    const normalizeForIdentity = (str: string): string => {
+      if (!str) return '';
+      return str
+        .toLowerCase()
+        .replace(/\.[a-z0-9]+$/i, '')       // Strip extensions (.png, .pdf, .md, .ts, .json)
+        .replace(/[_.\-\/\\:]/g, ' ')        // Replace separators with spaces
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const normQuery = normalizeForIdentity(query);
+    
+    // Generic words that should not trigger identity boost by themselves
+    const genericTokens = new Set(['image', 'report', 'architecture', 'security', 'test', 'document', 'file', 'guide', 'notes', 'data', 'info', 'pdf', 'doc', 'docs', 'design', 'designs', 'chart', 'charts']);
+    const queryWords = normQuery.split(' ').filter(w => w.length > 2);
+    const nonGenericQueryWords = queryWords.filter(w => !genericTokens.has(w));
+
+    // Minimum raw relevance gate: if explicit target document IDs are resolved, relax gate to preserve target chunks
+    const hasTargetDocIds = Array.isArray(this.targetDocumentIds) && this.targetDocumentIds.length > 0;
+    const gateThreshold = hasTargetDocIds ? 0.25 : 0.52;
+    const MIN_RELEVANCE_SCORE = hasTargetDocIds ? 0.25 : 0.55;
+
     const topRawScore = authorizedCandidates.reduce((max, c) => Math.max(max, c.score ?? 0), 0);
-    if (topRawScore < 0.52) {
-      console.log(` -> Top candidate raw score (${topRawScore.toFixed(4)}) below relevance gate (0.52). Returning no evidence.`);
+    if (topRawScore < gateThreshold) {
+      console.log(` -> Top candidate raw score (${topRawScore.toFixed(4)}) below relevance gate (${gateThreshold}). Returning no evidence.`);
       return [];
     }
 
-    // Min quality cutoff for individual candidate chunks
-    const MIN_RELEVANCE_SCORE = 0.55;
     const validCandidates = authorizedCandidates.filter((res: any) => (res.score ?? 0) >= MIN_RELEVANCE_SCORE);
 
     if (validCandidates.length === 0) {
@@ -206,31 +230,95 @@ export class OrganizationRetriever extends BaseRetriever {
       return [];
     }
 
-    // Score ranking with Ownership Priority (only applied to valid matches >= 0.55)
+    // Detect if user query is multi-document comparison
+    const isMultiDocQuery = /\b(compare|versus|vs|between|both|difference|and|all|across)\b/i.test(query) || queryWords.length > 8;
+
+    // Score ranking with Document Identity Awareness and Ownership Priority
     const scoredCandidates = validCandidates.map((res: any) => {
       const rawScore = res.score ?? 0;
-      const isOwner = res.payload?.ownerId && this.authContext.userId && res.payload.ownerId === this.authContext.userId;
-      const isPrivate = res.payload?.visibility === 'PRIVATE' || res.payload?.scope === 'PERSONAL';
+      const rawDocName = res.payload?.documentName || res.payload?.title || res.payload?.externalId || '';
+      const normDocName = normalizeForIdentity(rawDocName);
       
-      let adjustedScore = rawScore;
-      if (isOwner) {
-        adjustedScore += isPrivate ? 0.10 : 0.05;
+      // Clean trailing timestamps/UUID numbers from normalized document name for exact sequence matching
+      const cleanDocName = normDocName.replace(/\b\d{6,}\b/g, '').replace(/\s+/g, ' ').trim();
+      const docWords = cleanDocName.split(' ').filter(w => w.length > 2);
+      const nonGenericDocWords = docWords.filter(w => !genericTokens.has(w));
+
+      // Identity Matching: Check if query contains cleanDocName OR cleanDocName contains normQuery
+      let isIdentityMatch = false;
+      
+      if (cleanDocName.length >= 3 && normQuery.length >= 3) {
+        if (normQuery.includes(cleanDocName) || cleanDocName.includes(normQuery)) {
+          // Verify that the match isn't purely composed of a single generic token
+          const matchingNonGeneric = nonGenericQueryWords.filter(w => cleanDocName.includes(w));
+          if (nonGenericQueryWords.length === 0 || matchingNonGeneric.length > 0 || cleanDocName === normQuery) {
+            isIdentityMatch = true;
+          }
+        } else {
+          // Token sequence overlap matching
+          const matchingWords = docWords.filter(w => queryWords.includes(w));
+          const matchingNonGenericWords = nonGenericDocWords.filter(w => nonGenericQueryWords.includes(w));
+          if (matchingWords.length >= 2 && matchingNonGenericWords.length > 0) {
+            isIdentityMatch = true;
+          }
+        }
       }
 
-      return { res, rawScore, adjustedScore };
+      const isOwner = res.payload?.ownerId && this.authContext.userId && res.payload.ownerId === this.authContext.userId;
+      const isPrivate = res.payload?.visibility === 'PRIVATE' || res.payload?.scope === 'PERSONAL';
+      const docScope = res.payload?.scope || 'ORGANIZATION';
+      const classification = res.payload?.classification || 'UNCLASSIFIED';
+      
+      // Objective 9: Source Authority & Conflict Management Calculation
+      // Official HR/Policy/Governance > Approved Internal Document > Personal Document > External/Imported
+      let authorityBoost = 0;
+      const lowerDocName = rawDocName.toLowerCase();
+      if (/\b(policy|handbook|sop|official|governance|guideline|contract|compliance|terms)\b/i.test(lowerDocName) || classification === 'RESTRICTED' || classification === 'CONFIDENTIAL') {
+        authorityBoost = 0.12; // Official Policy / Governance Document
+      } else if (docScope === 'ORGANIZATION') {
+        authorityBoost = 0.06; // Approved Internal Org Document
+      } else if (docScope === 'PERSONAL') {
+        authorityBoost = effectiveScope === 'PERSONAL' ? 0.08 : 0.02; // Personal User Document
+      }
+      
+      let adjustedScore = rawScore + authorityBoost;
+      if (isIdentityMatch) {
+        adjustedScore += 0.15; // Document Identity Signal Boost
+      }
+      if (isOwner) {
+        adjustedScore += isPrivate ? 0.08 : 0.04;
+      }
+
+      return { res, rawScore, adjustedScore, isIdentityMatch, authorityBoost };
     });
 
     // Sort by adjustedScore descending
     scoredCandidates.sort((a, b) => b.adjustedScore - a.adjustedScore);
 
-    // 3. Smart Deduplication: limit to max 2 chunks per documentId to ensure context diversity
-    const docChunkCounts: Record<string, number> = {};
-    const selectedCandidates: typeof scoredCandidates = [];
+    const hasAnyIdentityMatch = scoredCandidates.some(c => c.isIdentityMatch);
+    const topCandidate = scoredCandidates[0];
 
-    for (const item of scoredCandidates) {
+    // Filter out candidates that are noise relative to an explicit identity or high top-score match
+    const retainedCandidates = scoredCandidates.filter(item => {
+      // 1. If explicit identity match exists, reject candidates without identity match unless multi-doc query
+      if (hasAnyIdentityMatch && !item.isIdentityMatch && !isMultiDocQuery) {
+        return false;
+      }
+      // 2. Reject candidates whose raw score falls significantly below top candidate unless multi-doc query
+      if (!isMultiDocQuery && (topCandidate.rawScore - item.rawScore) > 0.10 && !item.isIdentityMatch) {
+        return false;
+      }
+      return true;
+    });
+
+    // 3. Smart Deduplication: limit to max 2 chunks per documentId (topK is a MAXIMUM capacity, not a quota)
+    const docChunkCounts: Record<string, number> = {};
+    const selectedCandidates: typeof retainedCandidates = [];
+
+    for (const item of retainedCandidates) {
       const docId = item.res.payload?.documentId || 'unknown';
       const currentCount = docChunkCounts[docId] || 0;
-      if (currentCount < 2 || selectedCandidates.length < this.topK) {
+      if (currentCount < 2) {
         docChunkCounts[docId] = currentCount + 1;
         selectedCandidates.push(item);
         if (selectedCandidates.length >= this.topK) break;
@@ -240,7 +328,7 @@ export class OrganizationRetriever extends BaseRetriever {
     const finalCandidates = selectedCandidates.slice(0, this.topK);
     console.log(` -> Candidates Selected for Context (${finalCandidates.length}):`);
     finalCandidates.forEach(c => {
-      console.log(`    - doc: "${c.res.payload?.documentName || c.res.payload?.documentId}" | scope: ${c.res.payload?.scope} | ownerId: ${c.res.payload?.ownerId} | vis: ${c.res.payload?.visibility} | rawScore: ${c.rawScore.toFixed(4)} | adjScore: ${c.adjustedScore.toFixed(4)}`);
+      console.log(`    - doc: "${c.res.payload?.documentName || c.res.payload?.documentId}" | scope: ${c.res.payload?.scope} | idMatch: ${c.isIdentityMatch} | rawScore: ${c.rawScore.toFixed(4)} | adjScore: ${c.adjustedScore.toFixed(4)}`);
     });
 
     return finalCandidates.map(({ res, rawScore }) => new Document({

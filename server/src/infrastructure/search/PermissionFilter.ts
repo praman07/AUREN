@@ -11,6 +11,10 @@ export class PermissionFilter {
       { key: 'organizationId', match: { value: request.organizationId } }
     ];
 
+    if (request.targetDocumentIds && request.targetDocumentIds.length > 0) {
+      mustConditions.push({ key: 'documentId', match: { any: request.targetDocumentIds } });
+    }
+
     if (request.scope) {
       mustConditions.push({ key: 'scope', match: { value: request.scope } });
     }

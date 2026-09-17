@@ -23,6 +23,7 @@ export interface SearchRequest {
   scope?: 'PERSONAL' | 'ORGANIZATION';
   limit: number;
   filters?: Record<string, any>;
+  targetDocumentIds?: string[];
 }
 
 export interface SearchResponse {

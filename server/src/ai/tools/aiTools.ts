@@ -89,9 +89,10 @@ function scoreSearchResultRelevance(query: string, result: { title: string; snip
 
 export const createInternalKnowledgeTool = (
   authContext: UserAuthContext,
-  overrideScope?: 'PERSONAL' | 'ORGANIZATION'
+  overrideScope?: 'PERSONAL' | 'ORGANIZATION',
+  targetDocumentIds?: string[]
 ) => {
-  const retriever = new OrganizationRetriever({ authContext, topK: 10, overrideScope });
+  const retriever = new OrganizationRetriever({ authContext, topK: 10, overrideScope, targetDocumentIds });
 
   return new DynamicStructuredTool({
     name: 'internal_knowledge',
