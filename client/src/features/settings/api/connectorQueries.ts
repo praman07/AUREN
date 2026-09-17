@@ -248,7 +248,7 @@ export function useDeleteConnectorPolicy() {
 
   return useMutation({
     mutationFn: async ({ connectorId, policyId }: { connectorId: string; policyId: string }) => {
-      const response = await api.delete(`/connectors/${connectorId}/policies/${policyId}`);
+      const response = await api.del(`/connectors/${connectorId}/policies/${policyId}`);
       return response.data;
     },
     onSuccess: (_, variables) => {

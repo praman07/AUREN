@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, User, FileText, Globe, ChevronRight, Copy, ThumbsUp, ThumbsDown, Maximize2, X, Image as ImageIcon, GitBranch, ExternalLink } from 'lucide-react';
+import { Sparkles, User, FileText, Globe, ChevronRight, Copy, ThumbsUp, ThumbsDown, Maximize2, X, GitBranch, ExternalLink } from 'lucide-react';
 import type { ChatMessage } from '../store/useChatStore';
 import { chatService } from '../services/chatService';
 import { useDocumentStore } from '../../documents/store/useDocumentStore';

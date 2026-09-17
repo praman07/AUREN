@@ -174,7 +174,7 @@ export function useReprocessDocument() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.post(`/documents/${id}/reprocess`);
+      const response = await api.post(`/documents/${id}/reprocess`, {});
       return response.data || response;
     },
     onSuccess: (_, id) => {

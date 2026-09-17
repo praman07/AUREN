@@ -7,16 +7,12 @@ import {
   Loader2, 
   AlertCircle, 
   Check, 
-  ShieldAlert,
-  Users,
-  Building2,
-  UserCheck
+  ShieldAlert
 } from 'lucide-react';
 import { 
   useGetConnectorPolicies, 
   useSaveConnectorPolicy, 
-  useDeleteConnectorPolicy,
-  type ConnectorPolicy
+  useDeleteConnectorPolicy
 } from '../api/connectorQueries';
 
 interface ConnectorPolicyModalProps {
@@ -34,7 +30,7 @@ export const ConnectorPolicyModal: React.FC<ConnectorPolicyModalProps> = ({
   selectedRepos,
   onSuccessNotification,
 }) => {
-  const { data: policies, isLoading, isError, error } = useGetConnectorPolicies(connectorId, isOpen);
+  const { data: policies, isLoading } = useGetConnectorPolicies(connectorId, isOpen);
   const savePolicyMutation = useSaveConnectorPolicy();
   const deletePolicyMutation = useDeleteConnectorPolicy();
 
