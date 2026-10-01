@@ -35,7 +35,10 @@ export const EnterpriseLayout: React.FC = () => {
         onCloseMobile={() => setIsMobileNavOpen(false)}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
-        onNewChat={() => navigate('/chat')}
+        onNewChat={() => {
+          window.dispatchEvent(new CustomEvent('auren:start-new-chat'));
+          navigate('/chat', { state: { isNewChat: true, reset: Date.now() } });
+        }}
       />
 
       {/* 2. Main Content View Area */}

@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "nodemon src/index.ts",
-    "build": "rimraf dist && tsc",
+    "start": "node init && node dist/index.js",
+    "dev": "node init && nodemon src/index.ts",
+    "build": "node init && rimraf dist && tsc",
     "lint": "eslint . --ext .ts",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",

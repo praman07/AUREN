@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
   ArrowUp,
+  Square,
   Globe,
   FileText,
   X,
@@ -14,6 +15,7 @@ interface ChatComposerProps {
   inputMessage: string;
   onInputChange: (val: string) => void;
   onSend: (text?: string) => void;
+  onStop?: () => void;
   isStreaming: boolean;
   activeScope: KnowledgeScope;
   onChangeScope: (scope: KnowledgeScope) => void;
@@ -27,6 +29,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
   inputMessage,
   onInputChange,
   onSend,
+  onStop,
   isStreaming,
   activeScope,
   onChangeScope,
@@ -270,20 +273,31 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
               {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
 
-            {/* Send Button */}
-            <button
-              type="button"
-              onClick={() => onSend()}
-              disabled={!inputMessage.trim() || isStreaming}
-              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                inputMessage.trim() && !isStreaming
-                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-200'
-                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
-              }`}
-              title="Send prompt to AUREN"
-            >
-              <ArrowUp className="w-4 h-4" />
-            </button>
+            {/* Send or Stop Button */}
+            {isStreaming ? (
+              <button
+                type="button"
+                onClick={onStop}
+                className="p-1.5 rounded-md transition-colors cursor-pointer bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-200"
+                title="Stop generating response"
+              >
+                <Square className="w-4 h-4 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSend()}
+                disabled={!inputMessage.trim()}
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  inputMessage.trim()
+                    ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-200'
+                    : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-600 cursor-not-allowed'
+                }`}
+                title="Send prompt to AUREN"
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

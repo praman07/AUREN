@@ -5,8 +5,8 @@ export { ChatMessage, ChatOptions };
 export interface ModelMetadata {
   requestedModel: string;
   actualModel: string;
-  mode: 'FAST' | 'DEEP' | 'CUSTOM';
-  isFallback: boolean;
+  mode: 'CHAT';
+  isFallback: false;
   provider: string;
   endpoint: string;
 }
@@ -19,7 +19,7 @@ export interface LlamaCppModelConfig extends ModelMetadata {
   numPredict?: number;
 }
 
-function formatMessagesForOpenAI(messages: any[]): Array<{ role: string; content: string }> {
+function formatMessagesForOpenAI(messages: any[]): Array<{ role: string; content: any }> {
   return (messages || []).map((m) => {
     let role = 'user';
     if (m && typeof m._getType === 'function') {
@@ -30,6 +30,12 @@ function formatMessagesForOpenAI(messages: any[]): Array<{ role: string; content
     } else if (m && m.role) {
       role = m.role;
     }
+
+    // Support multimodal content (image_url + text parts)
+    if (m && Array.isArray(m.content)) {
+      return { role, content: m.content };
+    }
+
     const content = typeof m?.content === 'string' ? m.content : String(m?.content || '');
     return { role, content };
   });
@@ -135,58 +141,34 @@ export async function* streamLlamaCppChat(
 
 export class LlamaCppChatProvider implements IChatProvider {
   /**
-   * Resolves truthful model configuration & metadata for llama-server.
+   * Resolves the single multimodal generation model config.
+   *
+   * ARCHITECTURE: ONE generation model (Qwen2.5-VL-3B-Instruct Q4_K_M).
+   * No FAST/ANALYSIS/DEEP splitting. No silent fallbacks.
    */
   public getModelConfig(options: ChatOptions = {}): LlamaCppModelConfig {
-    const baseUrl = options.baseUrl || process.env.LLM_BASE_URL || process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8083';
-    const fastModel = process.env.LLAMACPP_MODEL_FAST || 'ornith:9b';
-    const deepModel = process.env.LLAMACPP_MODEL_DEEP || 'qwen2.5:14b';
-    
-    // On 8GB VRAM runtime, only the FAST model (ornith-9b.gguf) is currently loaded on port 8083.
-    // The server exposes 'ornith:9b' as its loaded identity.
-    const loadedModelOnServer = process.env.LLAMACPP_MODEL_LOADED || fastModel;
+    const baseUrl =
+      options.baseUrl ||
+      process.env.LLM_BASE_URL ||
+      process.env.LLAMACPP_BASE_URL ||
+      'http://127.0.0.1:8083';
 
-    let requestedModel: string;
-    let mode: 'FAST' | 'DEEP' | 'CUSTOM';
-
-    if (options.modelName === 'FAST') {
-      requestedModel = fastModel;
-      mode = 'FAST';
-    } else if (options.modelName === 'DEEP') {
-      requestedModel = deepModel;
-      mode = 'DEEP';
-    } else if (options.modelName) {
-      requestedModel = options.modelName;
-      mode = options.modelName === deepModel ? 'DEEP' : options.modelName === fastModel ? 'FAST' : 'CUSTOM';
-    } else {
-      requestedModel = fastModel;
-      mode = 'FAST';
-    }
-
-    // Determine actual model available on runtime
-    let actualModel: string;
-    let isFallback = false;
-
-    if (requestedModel === deepModel && deepModel !== loadedModelOnServer) {
-      // 14B model requested, but 8GB RTX 4070 runtime only has 9B loaded.
-      // Explicit hardware-aware fallback to loaded 9B model without false alias.
-      actualModel = loadedModelOnServer;
-      isFallback = true;
-    } else {
-      actualModel = requestedModel;
-      isFallback = false;
-    }
+    const generationModel =
+      options.modelName ||
+      process.env.GENERATION_MODEL ||
+      process.env.LLAMACPP_MODEL ||
+      'qwen2.5-vl-3b-instruct';
 
     const temperature = options.temperature ?? 0.1;
     const numCtx = options.numCtx ?? (Number(process.env.LLAMACPP_NUM_CTX) || 8192);
 
     return {
       baseUrl,
-      model: actualModel,
-      requestedModel,
-      actualModel,
-      mode,
-      isFallback,
+      model: generationModel,
+      requestedModel: generationModel,
+      actualModel: generationModel,
+      mode: 'CHAT',
+      isFallback: false,
       provider: 'llamacpp',
       endpoint: baseUrl,
       temperature,

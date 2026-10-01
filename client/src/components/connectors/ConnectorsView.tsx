@@ -5,6 +5,7 @@ import {
   Lock,
   ArrowRight,
   ChevronRight,
+  Unplug,
 } from 'lucide-react';
 import type { Connector, ConnectorPolicy } from '../../types';
 import { PlatformIcon } from '../ui/PlatformIcons';
@@ -12,6 +13,8 @@ import { Button } from '../ui/button';
 import { ConnectSourceModal } from './ConnectSourceModal';
 import { ManageRepositoriesModal } from './ManageRepositoriesModal';
 import { ManageAccessModal } from './ManageAccessModal';
+import { api } from '../../services/api';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 
 interface ConnectorsViewProps {
   connectors?: Connector[];
@@ -189,8 +192,23 @@ export const ConnectorsView: React.FC<ConnectorsViewProps> = ({
   initialSelectedId: _initialSelectedId,
   initialScope = 'organization',
 }) => {
+  const { scopeRoute } = useParams<{ scopeRoute?: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const urlScope = (scopeRoute || searchParams.get('scope'))?.toLowerCase();
+  const initialScopeFromUrl = urlScope === 'personal' ? 'personal' : (urlScope === 'org' || urlScope === 'organization') ? 'organization' : initialScope;
+
   // Active scope switcher: organization by default
-  const [activeScope, setActiveScope] = useState<'organization' | 'personal'>(initialScope);
+  const [activeScope, setActiveScope] = useState<'organization' | 'personal'>(initialScopeFromUrl);
+
+  React.useEffect(() => {
+    if (urlScope === 'personal') {
+      setActiveScope('personal');
+    } else if (urlScope === 'org' || urlScope === 'organization') {
+      setActiveScope('organization');
+    }
+  }, [urlScope]);
 
   // List of connectors state
   const [orgConnectors, setOrgConnectors] = useState<ConnectorItem[]>(DEFAULT_ORG_CONNECTORS);
@@ -205,8 +223,19 @@ export const ConnectorsView: React.FC<ConnectorsViewProps> = ({
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [activeModalConnector, setActiveModalConnector] = useState<Connector | null>(null);
 
-  // Active list according to scope
-  const currentList = activeScope === 'organization' ? orgConnectors : personalConnectors;
+  // Active list according to scope — strictly de-duplicated by type to prevent repetitive rows
+  const currentRawList = activeScope === 'organization' ? orgConnectors : personalConnectors;
+  const currentList = React.useMemo(() => {
+    const seenTypes = new Set<string>();
+    const result: ConnectorItem[] = [];
+    for (const item of currentRawList) {
+      if (item.scope === activeScope && !seenTypes.has(item.type)) {
+        seenTypes.add(item.type);
+        result.push(item);
+      }
+    }
+    return result;
+  }, [currentRawList, activeScope]);
 
   // Find active selected item
   const selectedItem =
@@ -273,31 +302,69 @@ export const ConnectorsView: React.FC<ConnectorsViewProps> = ({
 
 
 
-  const handleConnectNewSource = (sourceType: string, scope: 'organization' | 'personal', name: string) => {
-    const newId = `conn_${sourceType}_${Date.now()}`;
+  const handleConnectNewSource = (sourceType: string, _scope: 'organization' | 'personal', name: string) => {
+    // Strictly isolate connection to active context scope
+    const targetScope = activeScope;
+    const newId = `conn_${sourceType}_${targetScope}`;
     const newItem: ConnectorItem = {
       id: newId,
       type: sourceType,
       name: name,
-      subtitle: scope === 'personal' ? 'My connected account' : undefined,
-      scope: scope,
+      subtitle: targetScope === 'personal' ? 'My connected account' : undefined,
+      scope: targetScope,
       status: 'connected',
-      access: scope === 'organization' ? 'Engineering' : 'Private to you',
+      access: targetScope === 'organization' ? 'Engineering' : 'Private to you',
       resourceCountText: 'Connected (Initial sync in progress)',
       lastSyncText: 'Just now',
       connected: true,
       resourceCount: 1,
     };
 
-    if (scope === 'organization') {
-      setOrgConnectors((prev) => [newItem, ...prev]);
-      setActiveScope('organization');
+    if (targetScope === 'organization') {
+      setOrgConnectors((prev) => {
+        const existingIndex = prev.findIndex((c) => c.type === sourceType);
+        if (existingIndex >= 0) {
+          const copy = [...prev];
+          copy[existingIndex] = { ...copy[existingIndex], ...newItem, id: copy[existingIndex].id };
+          return copy;
+        }
+        return [newItem, ...prev];
+      });
     } else {
-      setPersonalConnectors((prev) => [newItem, ...prev]);
-      setActiveScope('personal');
+      setPersonalConnectors((prev) => {
+        const existingIndex = prev.findIndex((c) => c.type === sourceType);
+        if (existingIndex >= 0) {
+          const copy = [...prev];
+          copy[existingIndex] = { ...copy[existingIndex], ...newItem, id: copy[existingIndex].id };
+          return copy;
+        }
+        return [newItem, ...prev];
+      });
     }
 
     setSelectedConnectorId(newId);
+  };
+
+  const handleDisconnectConnector = async (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updateItem = (prev: ConnectorItem[]) =>
+      prev.map((c) =>
+        c.id === itemId
+          ? { ...c, status: 'not_connected' as const, connected: false, resourceCountText: '—', lastSyncText: '—' }
+          : c
+      );
+
+    if (activeScope === 'organization') {
+      setOrgConnectors(updateItem);
+    } else {
+      setPersonalConnectors(updateItem);
+    }
+
+    try {
+      await api.disconnectConnector(itemId);
+    } catch (err) {
+      console.warn('Disconnect notification notice:', err);
+    }
   };
 
   return (
@@ -346,6 +413,7 @@ export const ConnectorsView: React.FC<ConnectorsViewProps> = ({
                   onClick={() => {
                     setActiveScope('organization');
                     setSelectedConnectorId('conn_github_org');
+                    navigate('/connectors/org');
                   }}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                     activeScope === 'organization'
@@ -362,6 +430,7 @@ export const ConnectorsView: React.FC<ConnectorsViewProps> = ({
                   onClick={() => {
                     setActiveScope('personal');
                     setSelectedConnectorId('conn_github_personal');
+                    navigate('/connectors/personal');
                   }}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                     activeScope === 'personal'
@@ -483,19 +552,30 @@ export const ConnectorsView: React.FC<ConnectorsViewProps> = ({
                     </div>
 
                     {/* ACTION Column */}
-                    <div className="col-span-2 sm:col-span-1 text-right">
+                    <div className="col-span-3 sm:col-span-2 flex items-center justify-end gap-2">
                       {isConnected ? (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectRow(item);
-                          }}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
-                        >
-                          <span>Manage</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectRow(item);
+                            }}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors cursor-pointer"
+                          >
+                            <span>Manage</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDisconnectConnector(item.id, e)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                            title="Disconnect Connector"
+                          >
+                            <Unplug className="w-3.5 h-3.5" />
+                            <span className="hidden md:inline">Disconnect</span>
+                          </button>
+                        </>
                       ) : (
                         <button
                           type="button"
@@ -538,6 +618,7 @@ export const ConnectorsView: React.FC<ConnectorsViewProps> = ({
         isOpen={isConnectModalOpen}
         onClose={() => setIsConnectModalOpen(false)}
         defaultScope={activeScope}
+        lockedScope={activeScope}
         onConnectSource={handleConnectNewSource}
       />
 

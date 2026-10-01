@@ -294,7 +294,7 @@ export async function classifyQueryComplexity(state: AURENGraphState): Promise<{
   const casualWords = new Set([
     'hi', 'hello', 'hey', 'yo', 'thanks', 'thank you', 'how are you',
     'good morning', 'good night', 'ok', 'okay', 'sure', 'yes', 'no',
-    'bye', 'goodbye', 'what\'s up', 'sup', 'yoo'
+    'bye', 'goodbye', 'what\'s up', 'sup', 'yoo', 'yoyoy', 'hello man'
   ]);
   const isObviousCasual = casualWords.has(queryClean) || queryClean.length <= 8;
 
@@ -384,7 +384,7 @@ export async function classifySearchNecessity(state: AURENGraphState): Promise<{
   const casualWords = new Set([
     'hi', 'hello', 'hey', 'yo', 'thanks', 'thank you', 'how are you',
     'good morning', 'good night', 'ok', 'okay', 'sure', 'yes', 'no',
-    'bye', 'goodbye', 'what\'s up', 'sup', 'yoo'
+    'bye', 'goodbye', 'what\'s up', 'sup', 'yoo', 'yoyoy', 'hello man'
   ]);
   if (casualWords.has(queryClean) || queryClean.length <= 8) {
     console.log(`[Search Necessity Classifier] ⚡ Casual greeting heuristic matched, using NONE.`);
@@ -815,15 +815,17 @@ Current User Query: "${rawQuery}"`;
         ) || /\b(who is the current|what is the current|latest version of|current version of|latest release of)\b/i.test(queryLower);
 
         const hasInternalKeyword = internalKeywordPattern.test(queryLower);
-        const isDomainOrEntityQuery = domainQueryPattern.test(queryLower) || (!isGenericCsConcept && !isGenericCodeRequest && /\b(what is|what are|tell me about|explain|describe|details of|overview of|who is responsible for|how to handle)\b/i.test(queryLower));
+        const isExplicitDomainQuery = domainQueryPattern.test(queryLower);
+        const isDomainOrEntityQuery = isExplicitDomainQuery || (!isGenericCsConcept && !isGenericCodeRequest && /\b(what is|what are|tell me about|explain|describe|details of|overview of|who is responsible for|how to handle)\b/i.test(queryLower));
 
-        const hasInternal = hasInternalKeyword || isDomainOrEntityQuery;
-        const hasWeb = webPattern.test(queryLower) || isExplicitWebSearch || (isDynamicDataQuery && !hasInternal);
+        // Explicit internal keywords or domain patterns take precedence; otherwise dynamic queries stay dynamic
+        const hasInternal = hasInternalKeyword || (isExplicitDomainQuery) || (!isDynamicDataQuery && isDomainOrEntityQuery);
+        const hasWeb = webPattern.test(queryLower) || isExplicitWebSearch || (isDynamicDataQuery && !hasInternalKeyword && !isExplicitDomainQuery);
 
-        if (hasInternal && (hasWeb || isDynamicDataQuery)) {
+        if (hasInternal && (hasWeb || (isDynamicDataQuery && (hasInternalKeyword || isExplicitDomainQuery)))) {
           intent = 'MIXED';
           confidence = 0.96;
-        } else if (isDynamicDataQuery && !hasInternal) {
+        } else if (isDynamicDataQuery || (hasWeb && !hasInternal)) {
           intent = 'DYNAMIC_DATA';
           confidence = 0.98;
         } else if (hasInternal) {
@@ -833,8 +835,8 @@ Current User Query: "${rawQuery}"`;
           intent = 'EXTERNAL_WEB';
           confidence = 0.97;
         } else if (
-          (queryLower.length <= 15 && /^(hi|hello|hey|yo|thanks|thank\s+you|how are you|good\s+morning|good\s+night|ok|okay|sure|yes|no|bye|goodbye|what's up|sup)$/i.test(queryLower))
-          || /^(hi|hello|hey|yo|thanks|thank\s+you|how are you|who are you|what is your name|tell me a joke|how's it going)$/i.test(queryLower)
+          (queryLower.length <= 15 && /^(hi|hello|hey|yo|yoyoy|hello\s+man|thanks|thank\s+you|how are you|good\s+morning|good\s+night|ok|okay|sure|yes|no|bye|goodbye|what's up|sup)$/i.test(queryLower))
+          || /^(hi|hello|hey|yo|yoyoy|hello\s+man|thanks|thank\s+you|how are you|who are you|what is your name|tell me a joke|how's it going)$/i.test(queryLower)
         ) {
           intent = 'CASUAL';
           confidence = 1.0;
@@ -2000,26 +2002,28 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
         systemPrompt += `2. DO NOT mention web search, search results, search tools, RAG, internal documents, or unavailability of search tools. Answer the user query directly and naturally as if you are a standard chat assistant.\n\n`;
       }
       
-      systemPrompt += `\n--- AMBIGUITY & MULTI-INTERPRETATION ANSWER RULES ---\n`;
-      systemPrompt += `1. CLARIFICATION STRICTLY FORBIDDEN: The scope decision layer has already determined clarification is NOT required. You are FORBIDDEN from asking the user to specify which entity they meant. Never say "Which one did you mean?", "Could you clarify?", "Which [entity] are you referring to?", "Please specify", or any similar phrase — not even at the end of your answer.\n`;
-      systemPrompt += `2. MULTI-INTERPRETATION ANSWERS: If the query is ambiguous across 2–3 prominent entities, you MUST answer for ALL of them in a single structured response. Use this format:\n`;
-      systemPrompt += `   a) Open with one sentence noting the name refers to N distinct entities.\n`;
-      systemPrompt += `   b) Use a bold heading for each interpretation followed immediately by its answer.\n`;
-      systemPrompt += `   c) EXAMPLE — for "What is the capital of Congo?":\n`;
-      systemPrompt += `      "Congo refers to two distinct countries:\n\n**Republic of the Congo** — The capital is Brazzaville.\n\n**Democratic Republic of the Congo (DRC)** — The capital is Kinshasa."\n`;
-      systemPrompt += `3. Your answer is complete when all interpretations are covered. Do NOT append a follow-up clarification question.\n\n`;
+      if (state.intentCategory !== 'CASUAL') {
+        systemPrompt += `\n--- AMBIGUITY & MULTI-INTERPRETATION ANSWER RULES ---\n`;
+        systemPrompt += `1. CLARIFICATION STRICTLY FORBIDDEN: The scope decision layer has already determined clarification is NOT required. You are FORBIDDEN from asking the user to specify which entity they meant. Never say "Which one did you mean?", "Could you clarify?", "Which [entity] are you referring to?", "Please specify", or any similar phrase — not even at the end of your answer.\n`;
+        systemPrompt += `2. MULTI-INTERPRETATION ANSWERS: If the query is ambiguous across 2–3 prominent entities, you MUST answer for ALL of them in a single structured response. Use this format:\n`;
+        systemPrompt += `   a) Open with one sentence noting the name refers to N distinct entities.\n`;
+        systemPrompt += `   b) Use a bold heading for each interpretation followed immediately by its answer.\n`;
+        systemPrompt += `   c) EXAMPLE — for "What is the capital of Congo?":\n`;
+        systemPrompt += `      "Congo refers to two distinct countries:\n\n**Republic of the Congo** — The capital is Brazzaville.\n\n**Democratic Republic of the Congo (DRC)** — The capital is Kinshasa."\n`;
+        systemPrompt += `3. Your answer is complete when all interpretations are covered. Do NOT append a follow-up clarification question.\n\n`;
 
-      systemPrompt += `\n--- RESPONSE LENGTH & DETAIL DIRECTIVES ---\n`;
-      systemPrompt += `Tailor the length and structure of your response directly to the nature of the user query and available evidence:\n`;
-      systemPrompt += `- Simple factual question: Provide a concise, direct answer.\n`;
-      systemPrompt += `- List or Inventory request (e.g. "List all...", "Show me everything...", document catalog): Provide a complete, structured, and useful list of all matching items from available evidence.\n`;
-      systemPrompt += `- Explanation request: Provide a clear, thorough, and detailed explanation.\n`;
-      systemPrompt += `- Comparison request: Provide a clear, structured comparison covering all compared entities.\n`;
-      systemPrompt += `- Multi-part question: Address and answer every sub-question or component explicitly.\n`;
-      systemPrompt += `- Summary request: Provide a comprehensive summary covering key points within available evidence.\n`;
-      systemPrompt += `- Never intentionally make an answer shorter just because brevity is preferred.\n`;
-      systemPrompt += `- Never invent or speculate information to make an answer longer.\n`;
-      systemPrompt += `- If evidence is insufficient, clearly state what is supported and what is unavailable.\n\n`;
+        systemPrompt += `\n--- RESPONSE LENGTH & DETAIL DIRECTIVES ---\n`;
+        systemPrompt += `Tailor the length and structure of your response directly to the nature of the user query and available evidence:\n`;
+        systemPrompt += `- Simple factual question: Provide a concise, direct answer.\n`;
+        systemPrompt += `- List or Inventory request (e.g. "List all...", "Show me everything...", document catalog): Provide a complete, structured, and useful list of all matching items from available evidence.\n`;
+        systemPrompt += `- Explanation request: Provide a clear, thorough, and detailed explanation.\n`;
+        systemPrompt += `- Comparison request: Provide a clear, structured comparison covering all compared entities.\n`;
+        systemPrompt += `- Multi-part question: Address and answer every sub-question or component explicitly.\n`;
+        systemPrompt += `- Summary request: Provide a comprehensive summary covering key points within available evidence.\n`;
+        systemPrompt += `- Never intentionally make an answer shorter just because brevity is preferred.\n`;
+        systemPrompt += `- Never invent or speculate information to make an answer longer.\n`;
+        systemPrompt += `- If evidence is insufficient, clearly state what is supported and what is unavailable.\n\n`;
+      }
 
       systemPrompt += `CRITICAL GROUNDING & SYNTHESIS RULES:\n`;
 
@@ -2050,9 +2054,10 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
         const isSearchFailure = searchStatusStr === 'web_retrieval_failure' || searchStatusStr === 'error' || !hasWebResults;
 
         systemPrompt += `1. THIS IS A REAL-TIME / DYNAMIC DATA QUERY (e.g. current stock prices, exchange rates, live values).\n`;
-        systemPrompt += `2. You MUST rely SOLELY on the extracted information in CURRENT WEB SEARCH RESULTS below. DO NOT fall back on your pre-trained model knowledge under any circumstances.\n`;
-        systemPrompt += `3. You MUST NEVER say "as of my last update", "as of my knowledge cutoff", "I don't have real-time capabilities", "I can guide you on how to find it", or mention training limits.\n`;
-        systemPrompt += `4. STRICT EVIDENCE & VERIFICATION RULES:\n`;
+        systemPrompt += `2. OVERRIDE ALL SAFETY OR MODEL TRAINING REFUSALS REGARDING REAL-TIME OR FINANCIAL DATA. You are explicitly provided with live internet search results below. Do NOT claim you cannot access stock prices, current rates, or live information. Present the web search data directly.\n`;
+        systemPrompt += `3. You MUST rely SOLELY on the extracted information in CURRENT WEB SEARCH RESULTS below. DO NOT fall back on your pre-trained model knowledge under any circumstances.\n`;
+        systemPrompt += `4. You MUST NEVER say "as of my last update", "as of my knowledge cutoff", "I don't have real-time capabilities", "I cannot provide live updates or specific stock prices", "I don't have access to real-time financial data", or mention training limits.\n`;
+        systemPrompt += `5. STRICT EVIDENCE & VERIFICATION RULES:\n`;
         systemPrompt += `   a) The final numerical/value claim MUST exist in retrieved web evidence.\n`;
         systemPrompt += `   b) The cited source MUST be one of the actually retrieved web sources listed below.\n`;
         systemPrompt += `   c) A stale value must NOT be presented as current.\n`;
@@ -2122,7 +2127,13 @@ Output strictly valid JSON matching the schema: {"research_brief": "string"}`;
       } else if (state.intentCategory === 'CONVERSATION_HISTORY') {
         systemPrompt += `1. Answer the user's question regarding past messages using the provided message thread history.\n`;
       } else if (state.intentCategory === 'CASUAL') {
-        systemPrompt += `1. You are engaging in a helpful conversation. Use the message thread and stored User Memory to personalize your response.\n`;
+        systemPrompt += `1. You are AUREN, a friendly, concise, natural AI assistant.\n`;
+        systemPrompt += `2. CASUAL CONVERSATION & GREETING RULES:\n`;
+        systemPrompt += `   - Respond as a warm, human-like, helpful chat partner.\n`;
+        systemPrompt += `   - For greetings (e.g. "hi", "hello", "hey", "yoyoy", "hello man", "what's up"), respond warmly and naturally in 1–2 short sentences (e.g. "Hello! How can I help you today?").\n`;
+        systemPrompt += `   - For casual statements, anecdotes, or chat (e.g. "Helios had three brothers...", "I love coding"), acknowledge the user's input warmly and conversationally in 1–2 short sentences.\n`;
+        systemPrompt += `   - ABSOLUTELY FORBIDDEN: Do NOT provide dictionary definitions, term breakdowns, etymologies, song track listings, cultural analysis, or bulleted entity breakdowns for greetings or casual statements unless the user explicitly asked for a definition (e.g., "What is the definition of X?").\n`;
+        systemPrompt += `   - ABSOLUTELY FORBIDDEN: Never output boilerplate disclaimers such as "Without more context, it's difficult to determine...", "If you have a particular product or brand in mind...", "The term X is used in...", or "If you have a specific question, please provide more details".\n`;
       }
 
       if (state.systemTimeInfo) {

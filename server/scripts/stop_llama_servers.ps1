@@ -1,10 +1,11 @@
-# AUREN - Stop All 3 Llama Servers (Ports 8081, 8082, 8083)
-$ErrorActionPreference = "SilentlyContinue"
+# AUREN - Stop All Llama Servers
+# Stops any llama-server.exe processes on ports 8081 and 8083
+$ErrorActionPreference = "Continue"
 
-Write-Host "Stopping Llama Servers on ports 8081, 8082, 8083..." -ForegroundColor Cyan
+Write-Host "`nStopping AUREN llama servers..." -ForegroundColor Yellow
 
-$ports = @(8081, 8082, 8083)
-$stoppedCount = 0
+$ports = @(8081, 8082, 8083, 8084)
+$stopped = 0
 
 foreach ($p in $ports) {
     try {
@@ -12,20 +13,26 @@ foreach ($p in $ports) {
         foreach ($conn in $conns) {
             $proc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
             if ($proc) {
-                Write-Host "  Terminating PID $($proc.Id) ($($proc.Name)) listening on port $p..." -ForegroundColor Yellow
+                Write-Host "  Stopping $($proc.Name) (PID: $($proc.Id)) on port $p..." -ForegroundColor DarkYellow
                 Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-                $stoppedCount++
+                $stopped++
             }
         }
     } catch {}
 }
 
-# Also kill any orphan llama-server.exe
-$llamaProcs = Get-Process -Name "llama-server" -ErrorAction SilentlyContinue
-foreach ($lp in $llamaProcs) {
-    Write-Host "  Stopping llama-server process (PID: $($lp.Id))..." -ForegroundColor Yellow
-    Stop-Process -Id $lp.Id -Force -ErrorAction SilentlyContinue
-    $stoppedCount++
+# Also kill any orphaned llama-server processes
+$orphans = Get-Process -Name "llama-server" -ErrorAction SilentlyContinue
+foreach ($proc in $orphans) {
+    Write-Host "  Stopping orphan $($proc.Name) (PID: $($proc.Id))..." -ForegroundColor DarkYellow
+    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    $stopped++
 }
 
-Write-Host "Done. Stopped $stoppedCount process(es)." -ForegroundColor Green
+if ($stopped -eq 0) {
+    Write-Host "  No running llama-server processes found." -ForegroundColor Gray
+} else {
+    Write-Host "  Stopped $stopped process(es)." -ForegroundColor Green
+}
+
+Write-Host "Done." -ForegroundColor Green

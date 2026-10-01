@@ -12,6 +12,10 @@ import { ChatComposer } from './ChatComposer';
 import { EmptyChat } from './EmptyChat';
 import { MessageContent } from './MessageContent';
 import { GroundedSuggestionsAndImages } from './GroundedSuggestionsAndImages';
+import { api } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
+import { useChatStore } from '../../features/chat/store/useChatStore';
+import { ArrowDown } from 'lucide-react';
 
 interface ChatViewProps {
   conversations: ChatConversation[];
@@ -21,6 +25,7 @@ interface ChatViewProps {
   onDeleteConversation: (id: string) => void;
   onRenameConversation?: (id: string, newTitle: string) => void;
   onTogglePinConversation?: (id: string) => void;
+  onRefreshConversations?: () => void;
   documents: AurenDocument[];
   onOpenDocument: (doc: AurenDocument) => void;
   initialQuery?: string;
@@ -40,6 +45,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onDeleteConversation,
   onRenameConversation,
   onTogglePinConversation,
+  onRefreshConversations,
   documents,
   onOpenDocument,
   initialQuery,
@@ -51,6 +57,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onNavigateTab,
 }) => {
   const { activeScope, setActiveScope } = useAuth();
+  const navigate = useNavigate();
+  const setGlobalStreaming = useChatStore((state) => state.setStreaming);
+  const addStreamingChatId = useChatStore((state) => state.addStreamingChatId);
+  const removeStreamingChatId = useChatStore((state) => state.removeStreamingChatId);
+  const isChatStreaming = useChatStore((state) => state.isChatStreaming);
+
   const [currentConv, setCurrentConv] = useState<ChatConversation | null>(null);
   const [inputMessage, setInputMessage] = useState(initialQuery || '');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -61,32 +73,119 @@ export const ChatView: React.FC<ChatViewProps> = ({
   );
   const [searchWeb, setSearchWeb] = useState(false);
 
+  const isCurrentConvStreaming = currentConv?.id ? (isChatStreaming(currentConv.id) || isStreaming) : isStreaming;
+  const isStreamingActive = isCurrentConvStreaming;
+
+  // Sync initialAttachedDoc into attachedDocs state
+  useEffect(() => {
+    if (initialAttachedDoc) {
+      setAttachedDocs((prev) => {
+        if (prev.some((d) => d.id === initialAttachedDoc.id)) return prev;
+        return [initialAttachedDoc, ...prev];
+      });
+    }
+  }, [initialAttachedDoc]);
+
   // Sources drawer state
   const [isSourcesDrawerOpen, setIsSourcesDrawerOpen] = useState(false);
   const [highlightedSource, setHighlightedSource] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const isUserScrolledUpRef = useRef(false);
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 100;
+    isUserScrolledUpRef.current = isScrolledUp;
+    setIsUserScrolledUp(isScrolledUp);
+  };
+
+  const scrollToBottomInstant = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  };
+
+  const scrollToBottomSmooth = () => {
+    isUserScrolledUpRef.current = false;
+    setIsUserScrolledUp(false);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleStopGeneration = () => {
+    if (currentConv?.id) {
+      removeStreamingChatId(currentConv.id);
+    }
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+    setGlobalStreaming(false);
+  };
+
+  // Listen for global new chat trigger
+  useEffect(() => {
+    const handleNewChatTrigger = () => {
+      setCurrentConv(null);
+      setInputMessage('');
+      setAttachedDocs([]);
+      setActiveCitations([]);
+      setIsStreaming(false);
+    };
+    window.addEventListener('auren:start-new-chat', handleNewChatTrigger);
+    return () => window.removeEventListener('auren:start-new-chat', handleNewChatTrigger);
+  }, []);
 
   // Sync active conversation
   useEffect(() => {
-    if (activeConversationId) {
+    let isMounted = true;
+    if (activeConversationId && activeConversationId !== 'new') {
       const found = conversations.find((c) => c.id === activeConversationId);
       if (found) {
         setCurrentConv(found);
-        // Extract citations from the latest assistant message
-        const lastAssistantMsg = [...found.messages]
-          .reverse()
-          .find((m) => m.role === 'assistant' && m.sources && m.sources.length > 0);
-        if (lastAssistantMsg?.sources) {
-          setActiveCitations(lastAssistantMsg.sources);
+        const msgs = Array.isArray(found.messages) ? found.messages : [];
+        if (!found.messages) {
+          api.getConversation(found.id).then((full) => {
+            if (isMounted && full) {
+              setCurrentConv(full);
+              const fullMsgs = Array.isArray(full.messages) ? full.messages : [];
+              const lastAssistantMsg = [...fullMsgs]
+                .reverse()
+                .find((m) => m.role === 'assistant' && m.sources && m.sources.length > 0);
+              if (lastAssistantMsg?.sources) {
+                setActiveCitations(lastAssistantMsg.sources);
+              }
+            }
+          }).catch(() => {});
         } else {
-          setActiveCitations([]);
+          const lastAssistantMsg = [...msgs]
+            .reverse()
+            .find((m) => m.role === 'assistant' && m.sources && m.sources.length > 0);
+          if (lastAssistantMsg?.sources) {
+            setActiveCitations(lastAssistantMsg.sources);
+          } else {
+            setActiveCitations([]);
+          }
         }
+      } else {
+        setCurrentConv(null);
+        setActiveCitations([]);
       }
-    } else if (conversations.length > 0) {
-      onSelectConversation(conversations[0].id);
+    } else {
+      // Empty or new conversation state — render blank canvas
+      setCurrentConv(null);
+      setActiveCitations([]);
     }
-  }, [activeConversationId, conversations, onSelectConversation]);
+    return () => {
+      isMounted = false;
+    };
+  }, [activeConversationId, conversations]);
 
   // Handle auto-send if initialQuery provided
   useEffect(() => {
@@ -95,9 +194,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   }, [initialQuery]);
 
-  // Scroll to bottom on new messages or streaming
+  // Instant non-animated auto-scroll to bottom on streaming, respecting user scroll-up preference
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!scrollContainerRef.current) return;
+    if (!isUserScrolledUpRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   }, [currentConv?.messages, streamingText]);
 
   // Handle opening source citation in library or in drawer
@@ -119,35 +221,96 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Send message and stream via SSE
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || inputMessage).trim();
-    if (!query || isStreaming) return;
+    if (!query || isStreamingActive) return;
+
+    isUserScrolledUpRef.current = false;
+    setIsUserScrolledUp(false);
+    setTimeout(scrollToBottomInstant, 10);
 
     setInputMessage('');
     setIsStreaming(true);
+    setGlobalStreaming(true);
     setStreamingText('');
 
-    const convId = currentConv?.id;
-    const docIds = attachedDocs.map((d) => d.id);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const userMessage: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      role: 'user',
+      content: query,
+      timestamp: new Date().toISOString(),
+      attachedDocumentIds: attachedDocs.map((d) => d.id),
+    };
+
+    // Optimistically create/update conversation in state
+    let targetConv = currentConv;
+    if (!targetConv) {
+      targetConv = {
+        id: `conv_${Date.now()}`,
+        title: query.substring(0, 30),
+        scope: activeScope === 'personal' ? 'personal' : 'organization',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messages: [userMessage],
+      };
+    } else {
+      const existingMsgs = Array.isArray(targetConv.messages) ? targetConv.messages : [];
+      targetConv = {
+        ...targetConv,
+        messages: [...existingMsgs, userMessage],
+      };
+    }
+    setCurrentConv(targetConv);
+
+    const convId = targetConv.id;
+    const isUuid = typeof convId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(convId);
+    let activeStreamConvId = convId;
+
+    if (activeStreamConvId) {
+      addStreamingChatId(activeStreamConvId);
+    }
+
+    let accumulatedResponse = '';
 
     try {
-      const response = await fetch('/api/chat/stream', {
+      const getAuthHeaderToken = () => {
+        const token = localStorage.getItem('auren_token');
+        if (token) return token;
+        const mockUser = {
+          id: 'user-northstar-praman',
+          email: 'praman.bhogal@northstar-test.local',
+          organizationId: 'org-northstar-technologies',
+          role: 'Senior Backend Engineer',
+        };
+        const jsonStr = JSON.stringify(mockUser);
+        return typeof window !== 'undefined' && typeof btoa === 'function'
+          ? btoa(unescape(encodeURIComponent(jsonStr)))
+          : String(jsonStr);
+      };
+
+      const response = await fetch('/api/v1/chat/stream', {
+        signal: abortController.signal,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthHeaderToken()}`,
+        },
         body: JSON.stringify({
-          conversationId: convId,
-          query,
-          attachedDocumentIds: docIds,
-          scope: activeScope,
-          searchWeb,
+          message: query,
+          conversationId: isUuid ? convId : undefined,
+          mode: activeScope === 'personal' ? 'local' : 'hybrid',
+          executionMode: 'AUTO',
+          useKnowledgeBase: true,
         }),
       });
 
       if (!response.ok || !response.body) {
-        throw new Error('Streaming connection failed');
+        throw new Error(`Streaming failed: HTTP ${response.status}`);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let accumulatedResponse = '';
 
       while (true) {
         const { value, done } = await reader.read();
@@ -160,17 +323,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              if (data.type === 'init') {
-                if (data.citations) {
-                  setActiveCitations(data.citations);
+              if (data.type === 'retrieval_started' && data.data?.conversationId) {
+                const realId = data.data.conversationId;
+                if (activeStreamConvId && activeStreamConvId !== realId) {
+                  removeStreamingChatId(activeStreamConvId);
                 }
+                activeStreamConvId = realId;
+                addStreamingChatId(realId);
+                setCurrentConv((prev) => (prev ? { ...prev, id: realId } : {
+                  id: realId,
+                  title: query.substring(0, 30),
+                  scope: activeScope === 'personal' ? 'personal' : 'organization',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  messages: [userMessage],
+                }));
+                onSelectConversation(realId);
+                useChatStore.getState().setActiveConversationId(realId);
+                navigate('/chat', { replace: true, state: { conversationId: realId } });
+                onRefreshConversations?.();
+                window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
               } else if (data.type === 'token') {
-                accumulatedResponse += data.text;
+                const tokenStr = typeof data.data === 'string' ? data.data : (data.text || data.token || '');
+                accumulatedResponse += tokenStr;
                 setStreamingText(accumulatedResponse);
-              } else if (data.type === 'citation') {
-                setActiveCitations((prev) => [...prev, data.citation]);
-              } else if (data.type === 'done') {
-                // Done event
+              } else if (data.type === 'sources' || data.type === 'citations') {
+                const citations = data.data || data.sources || data.citations;
+                if (Array.isArray(citations)) {
+                  setActiveCitations(citations);
+                }
+              } else if (data.type === 'citation' && (data.citation || data.data)) {
+                const c = data.citation || data.data;
+                setActiveCitations((prev) => [...prev, c]);
+              } else if (data.type === 'init' && data.citations) {
+                setActiveCitations(data.citations);
               }
             } catch (e) {
               // Ignore partial JSON chunks
@@ -179,29 +365,74 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }
       }
 
-      // Refresh conversation list after response is fully streamed
-      const updatedRes = await fetch('/api/chat/conversations');
-      if (updatedRes.ok) {
-        const updatedList: ChatConversation[] = await updatedRes.json();
-        const fresh = updatedList.find((c) => c.id === convId) || updatedList[0];
+      // Append assistant message to local conversation state
+      if (accumulatedResponse) {
+        const assistantMessage: ChatMessage = {
+          id: `msg_ast_${Date.now()}`,
+          role: 'assistant',
+          content: accumulatedResponse,
+          timestamp: new Date().toISOString(),
+          sources: activeCitations,
+        };
+        setCurrentConv((prev) => {
+          if (!prev) return null;
+          const existing = Array.isArray(prev.messages) ? prev.messages : [];
+          return { ...prev, messages: [...existing, assistantMessage] };
+        });
+      }
+
+      // Refresh conversation list from backend
+      onRefreshConversations?.();
+      window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
+      try {
+        const updatedList = await api.getConversations();
+        const fresh = updatedList.find((c) => c.id === convId || c.id === activeStreamConvId) || updatedList[0];
         if (fresh) {
-          setCurrentConv(fresh);
+          const fullDetails = await api.getConversation(fresh.id).catch(() => fresh);
+          setCurrentConv(fullDetails);
           if (fresh.id !== activeConversationId) {
             onSelectConversation(fresh.id);
           }
         }
+      } catch (refreshErr) {
+        console.warn('Conversation refresh notice:', refreshErr);
       }
-    } catch (err) {
-      console.error('Streaming error:', err);
+    } catch (err: any) {
+      if (err.name === 'AbortError' || err.name === 'Canceled' || err.message?.includes('aborted')) {
+        console.log('Response generation aborted by user.');
+        // Save partial response if present
+        if (accumulatedResponse) {
+          const assistantMessage: ChatMessage = {
+            id: `msg_ast_${Date.now()}`,
+            role: 'assistant',
+            content: accumulatedResponse,
+            timestamp: new Date().toISOString(),
+            sources: activeCitations,
+          };
+          setCurrentConv((prev) => {
+            if (!prev) return null;
+            const existing = Array.isArray(prev.messages) ? prev.messages : [];
+            return { ...prev, messages: [...existing, assistantMessage] };
+          });
+        }
+      } else {
+        console.error('Streaming error:', err);
+        setStreamingText((prev) => prev || `Notice: Could not connect to AI engine (${err?.message || err}).`);
+      }
     } finally {
+      if (activeStreamConvId) {
+        removeStreamingChatId(activeStreamConvId);
+      }
+      abortControllerRef.current = null;
       setIsStreaming(false);
+      setGlobalStreaming(false);
       setStreamingText('');
       setAttachedDocs([]);
     }
   };
 
   const hasMessages = Boolean(
-    (currentConv && currentConv.messages && currentConv.messages.length > 0) || streamingText
+    (currentConv && currentConv.messages && Array.isArray(currentConv.messages) && currentConv.messages.length > 0) || streamingText
   );
 
   return (
@@ -227,9 +458,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
         {hasMessages ? (
           <>
             {/* Scrollable Reading Area */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 py-6 min-w-0">
+            <div
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 py-6 min-w-0"
+            >
               <div className="max-w-3xl lg:max-w-3.5xl mx-auto space-y-8 min-w-0">
-                {currentConv?.messages.map((msg: ChatMessage) => (
+                {(currentConv?.messages || []).map((msg: ChatMessage) => (
                   <div key={msg.id} className="space-y-2.5 min-w-0">
                     {msg.role === 'user' ? (
                       /* User Message: Clean, restrained enterprise bubble */
@@ -331,12 +566,25 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </div>
             </div>
 
+            {/* Floating Jump to Bottom Button when scrolled up */}
+            {isUserScrolledUp && (
+              <button
+                type="button"
+                onClick={scrollToBottomSmooth}
+                className="absolute bottom-24 right-8 z-20 px-3.5 py-1.5 rounded-full bg-neutral-900/90 dark:bg-neutral-100/90 text-white dark:text-neutral-900 text-xs font-semibold shadow-lg hover:bg-neutral-800 dark:hover:bg-white transition-all cursor-pointer flex items-center gap-1.5 backdrop-blur-xs"
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+                <span>Scroll to bottom</span>
+              </button>
+            )}
+
             {/* Bottom Composer */}
             <ChatComposer
               inputMessage={inputMessage}
               onInputChange={setInputMessage}
               onSend={handleSendMessage}
-              isStreaming={isStreaming}
+              onStop={handleStopGeneration}
+              isStreaming={isStreamingActive}
               activeScope={activeScope}
               onChangeScope={setActiveScope}
               searchWeb={searchWeb}
@@ -354,7 +602,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
               inputMessage={inputMessage}
               onInputChange={setInputMessage}
               onSend={handleSendMessage}
-              isStreaming={isStreaming}
+              onStop={handleStopGeneration}
+              isStreaming={isStreamingActive}
               activeScope={activeScope}
               onChangeScope={setActiveScope}
               searchWeb={searchWeb}

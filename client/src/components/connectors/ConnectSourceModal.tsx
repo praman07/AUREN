@@ -8,6 +8,7 @@ interface ConnectSourceModalProps {
   onClose: () => void;
   onConnectSource: (sourceType: string, scope: 'organization' | 'personal', name: string) => void;
   defaultScope?: 'organization' | 'personal';
+  lockedScope?: 'organization' | 'personal';
 }
 
 interface SourceOption {
@@ -22,10 +23,18 @@ export const ConnectSourceModal: React.FC<ConnectSourceModalProps> = ({
   onClose,
   onConnectSource,
   defaultScope = 'organization',
+  lockedScope,
 }) => {
-  const [targetScope, setTargetScope] = useState<'organization' | 'personal'>(defaultScope);
+  const initialScope = lockedScope || defaultScope;
+  const [targetScope, setTargetScope] = useState<'organization' | 'personal'>(initialScope);
   const [selectedSource, setSelectedSource] = useState<SourceOption | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setTargetScope(lockedScope || defaultScope);
+    }
+  }, [isOpen, lockedScope, defaultScope]);
 
   if (!isOpen) return null;
 
@@ -124,16 +133,17 @@ export const ConnectSourceModal: React.FC<ConnectSourceModalProps> = ({
           {/* Step 1: Where should this connection live? */}
           <div>
             <label className="text-xs font-semibold text-neutral-900 dark:text-neutral-200 block mb-2.5">
-              Where should this connection live?
+              Where should this connection live? {lockedScope && <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400 font-mono ml-2">(Locked to active {lockedScope} tab context)</span>}
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setTargetScope('organization')}
+                disabled={Boolean(lockedScope && lockedScope !== 'organization')}
+                onClick={() => !lockedScope && setTargetScope('organization')}
                 className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                   targetScope === 'organization'
                     ? 'border-neutral-900 dark:border-white bg-neutral-50/70 dark:bg-neutral-800/60 ring-1 ring-neutral-900/10 dark:ring-white/10'
-                    : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
+                    : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 opacity-50 cursor-not-allowed'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -154,11 +164,12 @@ export const ConnectSourceModal: React.FC<ConnectSourceModalProps> = ({
 
               <button
                 type="button"
-                onClick={() => setTargetScope('personal')}
+                disabled={Boolean(lockedScope && lockedScope !== 'personal')}
+                onClick={() => !lockedScope && setTargetScope('personal')}
                 className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
                   targetScope === 'personal'
                     ? 'border-neutral-900 dark:border-white bg-neutral-50/70 dark:bg-neutral-800/60 ring-1 ring-neutral-900/10 dark:ring-white/10'
-                    : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700'
+                    : 'border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 opacity-50 cursor-not-allowed'
                 }`}
               >
                 <div className="flex items-center justify-between">

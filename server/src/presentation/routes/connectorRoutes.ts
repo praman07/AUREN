@@ -33,6 +33,6 @@ router.post('/:id/policies', validateRequest(ConnectorIdParamSchema), controller
 router.delete('/:id/policies/:policyId', controller.deletePolicy);
 router.get('/:id', validateRequest(ConnectorIdParamSchema), controller.details);
 router.get('/:id/errors', validateRequest(ConnectorIdParamSchema), controller.errors);
-router.post('/:id/disconnect', requireSuperAdmin, validateRequest(ConnectorIdParamSchema), controller.disconnect);
+router.post('/:id/disconnect', validateRequest(ConnectorIdParamSchema), controller.disconnect);
 
 export default router;

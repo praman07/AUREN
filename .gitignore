@@ -2,7 +2,6 @@
 node_modules/
 dist/
 build/
-.env
 *.env
 ts_errors.txt
 
@@ -30,3 +29,7 @@ server/.qdrant-initialized
 *.log
 server/regression_output.txt
 server/test_output.log
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+config.bat

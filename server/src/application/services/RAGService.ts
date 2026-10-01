@@ -207,7 +207,13 @@ export class RAGService {
         });
       }
 
-      // 8. Log Audit Log Event
+      // 8. Update Chat updatedAt timestamp
+      await prisma.chat.update({
+        where: { id: chatId },
+        data: { updatedAt: new Date() }
+      }).catch(() => {});
+
+      // 9. Log Audit Log Event
       await prisma.auditLog.create({
         data: {
           organizationId: request.organizationId,

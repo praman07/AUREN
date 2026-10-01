@@ -30,6 +30,7 @@ export const ChatSidebar: React.FC = () => {
 
   const handleStartNewChat = () => {
     clearHistory();
+    window.dispatchEvent(new CustomEvent('auren:start-new-chat'));
   };
 
   const handleStartEdit = (e: React.MouseEvent, conv: ConversationItem) => {

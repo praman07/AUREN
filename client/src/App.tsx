@@ -65,6 +65,7 @@ function App() {
         <Route path="integrations/*" element={<SettingsPage />} />
         <Route path="collaboration" element={<CollaborationView />} />
         <Route path="connectors" element={<ConnectorsView connectors={[]} onSyncConnector={async () => {}} onUpdatePolicy={async () => {}} />} />
+        <Route path="connectors/:scopeRoute" element={<ConnectorsView connectors={[]} onSyncConnector={async () => {}} onUpdatePolicy={async () => {}} />} />
         <Route path="rbac" element={<RbacView />} />
         <Route path="agents" element={<AgentsWorkspace />} />
         <Route path="architecture-reviewer" element={<ArchitectureReviewerView documents={[]} />} />

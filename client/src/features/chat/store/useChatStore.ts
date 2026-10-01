@@ -47,7 +47,12 @@ interface ChatState {
   isSidebarOpen: boolean;
   isMemoryModalOpen: boolean;
   useKnowledgeBase: boolean;
-  
+
+  streamingChatIds: Record<string, boolean>;
+  addStreamingChatId: (id: string) => void;
+  removeStreamingChatId: (id: string) => void;
+  isChatStreaming: (id: string | null | undefined) => boolean;
+
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   appendStreamChunk: (chunk: string) => void;
   setToolCall: (tool: { name: string; query?: string; status?: 'running' | 'completed' | 'blocked'; stepLabel?: string }) => void;
@@ -69,9 +74,10 @@ interface ChatState {
   toggleMemoryModal: () => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isStreaming: false,
+  streamingChatIds: {},
   activeConversationId: null,
   activeMode: 'hybrid',
   executionMode: 'FAST',
@@ -80,6 +86,22 @@ export const useChatStore = create<ChatState>((set) => ({
   isSidebarOpen: true,
   isMemoryModalOpen: false,
   useKnowledgeBase: false,
+
+  addStreamingChatId: (id: string) => set((state) => {
+    const next = { ...state.streamingChatIds, [id]: true };
+    return { streamingChatIds: next, isStreaming: true };
+  }),
+
+  removeStreamingChatId: (id: string) => set((state) => {
+    const next = { ...state.streamingChatIds };
+    delete next[id];
+    return { streamingChatIds: next, isStreaming: Object.keys(next).length > 0 };
+  }),
+
+  isChatStreaming: (id: string | null | undefined) => {
+    if (!id) return false;
+    return Boolean(get().streamingChatIds[id]);
+  },
 
   addMessage: (message) => set((state) => ({
     messages: [

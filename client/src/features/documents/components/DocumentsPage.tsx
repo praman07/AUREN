@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LibraryView } from '../../../components/library/LibraryView';
 import { api } from '../../../services/api';
-import type { AurenDocument, Connector } from '../../../types';
+import type { AurenDocument, Connector, ConnectorDataItem } from '../../../types';
 
 export const DocumentsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,7 +27,33 @@ export const DocumentsPage: React.FC = () => {
   }, []);
 
   const handleAskAuren = (doc: AurenDocument) => {
-    navigate('/chat', { state: { initialAttachedDoc: doc, initialQuery: `Summarize key concepts in ${doc.title}` } });
+    navigate('/chat', { state: { initialAttachedDoc: doc } });
+  };
+
+  const handleAskAurenAboutConnectorData = (item: ConnectorDataItem) => {
+    const doc: AurenDocument = {
+      id: item.id,
+      title: item.title || 'Connector Resource',
+      filename: item.title || 'connector_file',
+      fileSize: item.sizeOrCount || '100 KB',
+      scope: 'organization',
+      updatedAt: item.syncedAt || new Date().toISOString(),
+      createdAt: item.syncedAt || new Date().toISOString(),
+      type: 'text',
+      status: 'ready',
+      source: 'github',
+      accessPolicy: {
+        ownerId: item.author || 'system',
+        ownerName: item.connectorName || 'Connector',
+        scope: 'organization',
+        allowedRoles: [],
+        allowedDepartments: [],
+        isRestricted: false,
+      },
+      versionHistory: [],
+      activityLog: [],
+    };
+    navigate('/chat', { state: { initialAttachedDoc: doc } });
   };
 
   const handleDeleteDocument = async (id: string) => {
@@ -45,6 +71,7 @@ export const DocumentsPage: React.FC = () => {
       connectors={connectors}
       onRefreshDocuments={loadData}
       onAskAuren={handleAskAuren}
+      onAskAurenAboutConnectorData={handleAskAurenAboutConnectorData}
       onDeleteDocument={handleDeleteDocument}
       onNavigateToRbac={() => navigate('/departments')}
     />

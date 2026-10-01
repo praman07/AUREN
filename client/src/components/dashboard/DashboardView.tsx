@@ -176,7 +176,8 @@ export const DashboardView: React.FC = () => {
     navigate('/chat', { state: { initialQuery: promptText } });
   };
 
-  const recentDocs = documents.slice(0, 4);
+  const docList = Array.isArray(documents) ? documents : (documents as any)?.data || [];
+  const recentDocs = docList.slice(0, 4);
 
   const sampleConnectors = [
     { name: 'GitHub Enterprise', type: 'github', status: 'active', syncedAgo: '3m ago', items: '48 repos' },
@@ -449,7 +450,7 @@ export const DashboardView: React.FC = () => {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate('/chat', { state: { initialQuery: `Explain document: ${doc.title}` } });
+                          navigate('/chat', { state: { initialAttachedDoc: doc } });
                         }}
                         className="px-2.5 py-1 rounded text-xs font-medium bg-white dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
                       >

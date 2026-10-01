@@ -14,6 +14,8 @@ export const ChatPage: React.FC = () => {
 
   const initialAttachedDoc = (location.state as any)?.initialAttachedDoc || null;
   const initialQuery = (location.state as any)?.initialQuery || undefined;
+  const stateConversationId = (location.state as any)?.conversationId;
+  const isNewChatRequested = Boolean((location.state as any)?.isNewChat);
 
   const loadData = async () => {
     try {
@@ -23,7 +25,11 @@ export const ChatPage: React.FC = () => {
       ]);
       setConversations(convs);
       setDocuments(docs);
-      if (convs.length > 0 && !activeConversationId) {
+      if (stateConversationId) {
+        setActiveConversationId(stateConversationId);
+      } else if (isNewChatRequested) {
+        setActiveConversationId(undefined);
+      } else if (convs.length > 0 && !activeConversationId) {
         setActiveConversationId(convs[0].id);
       }
     } catch (err) {
@@ -33,21 +39,20 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [stateConversationId, isNewChatRequested]);
 
   const handleCreateNewChat = () => {
-    const newId = `conv_${Date.now()}`;
-    const newConv: ChatConversation = {
-      id: newId,
-      title: 'New Research Inquiry',
-      scope: 'organization',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      messages: [],
-    };
-    setConversations((prev) => [newConv, ...prev]);
-    setActiveConversationId(newId);
+    setActiveConversationId(undefined);
+    window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
   };
+
+  useEffect(() => {
+    const handleGlobalNewChat = () => {
+      handleCreateNewChat();
+    };
+    window.addEventListener('auren:start-new-chat', handleGlobalNewChat);
+    return () => window.removeEventListener('auren:start-new-chat', handleGlobalNewChat);
+  }, []);
 
   const handleRenameConversation = async (id: string, newTitle: string) => {
     setConversations((prev) =>
@@ -55,6 +60,7 @@ export const ChatPage: React.FC = () => {
     );
     try {
       await api.updateConversation(id, { title: newTitle });
+      window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
     } catch (err) {
       console.error('Failed to rename conversation:', err);
     }
@@ -69,6 +75,7 @@ export const ChatPage: React.FC = () => {
     );
     try {
       await api.updateConversation(id, { pinned: newPinned });
+      window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
     } catch (err) {
       console.error('Failed to pin/unpin conversation:', err);
     }
@@ -82,6 +89,7 @@ export const ChatPage: React.FC = () => {
     }
     try {
       await api.deleteConversation(id);
+      window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
     } catch (err) {
       console.error('Failed to delete conversation:', err);
     }
@@ -97,6 +105,7 @@ export const ChatPage: React.FC = () => {
         onDeleteConversation={handleDeleteConversation}
         onRenameConversation={handleRenameConversation}
         onTogglePinConversation={handleTogglePinConversation}
+        onRefreshConversations={loadData}
         documents={documents}
         onOpenDocument={() => navigate('/documents')}
         initialQuery={initialQuery}

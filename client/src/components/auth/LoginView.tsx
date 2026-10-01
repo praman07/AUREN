@@ -87,22 +87,22 @@ export const LoginView: React.FC<LoginViewProps> = ({
           </p>
         </div>
 
-        {/* 1-Click Role Login Cards (Demonstrating Super Admin vs Dept Head) */}
+        {/* 1-Click Role Login Cards (Real Seeded Accounts) */}
         <div className="p-4 rounded-2xl bg-white dark:bg-[#141518] border border-neutral-200/80 dark:border-neutral-800/80 shadow-2xs space-y-2.5">
           <span className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider block">
             Instant Demo Logins
           </span>
 
-          {/* Elena Vance (Super Admin) */}
+          {/* System Admin */}
           <button
             type="button"
-            onClick={() => handleCompleteLogin('elena@example.com', 'persona_elena')}
+            onClick={() => handleCompleteLogin('admin@ekos.app', 'persona_admin')}
             className="w-full p-2.5 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/40 hover:bg-amber-100/50 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 transition-all flex items-center gap-3 text-left cursor-pointer group"
           >
             <div className="relative">
               <img
                 src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80"
-                alt="Elena Vance"
+                alt="System Admin"
                 className="w-9 h-9 rounded-full object-cover ring-2 ring-amber-400 shrink-0"
                 referrerPolicy="no-referrer"
               />
@@ -113,22 +113,22 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-neutral-900 dark:text-white truncate">
-                  Elena Vance
+                  System Admin
                 </span>
                 <span className="text-[10px] font-bold uppercase bg-amber-500 text-white px-1.5 py-0.2 rounded">
                   Super Admin
                 </span>
               </div>
               <span className="text-[11px] text-neutral-500 dark:text-neutral-400 block truncate">
-                Super Org Governance & Master KB Vault
+                admin@ekos.app • Super Org Governance
               </span>
             </div>
           </button>
 
-          {/* Praman Singh Bhogal (Dept Head) */}
+          {/* Praman Singh Bhogal (Core Arch Lead) */}
           <button
             type="button"
-            onClick={() => handleCompleteLogin('praman@example.com', 'persona_praman')}
+            onClick={() => handleCompleteLogin('praman.bhogal@northstar-test.local', 'persona_praman')}
             className="w-full p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-[#1A1B1F] transition-all flex items-center gap-3 text-left cursor-pointer"
           >
             <img
@@ -147,7 +147,55 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 </span>
               </div>
               <span className="text-[11px] text-neutral-500 dark:text-neutral-400 block truncate">
-                Core Architecture Lead
+                praman.bhogal@northstar-test.local • Core Architecture Lead
+              </span>
+            </div>
+          </button>
+
+          {/* Alice (Engineering) */}
+          <button
+            type="button"
+            onClick={() => handleCompleteLogin('alice@ekos.app', 'persona_alice')}
+            className="w-full p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-[#1A1B1F] transition-all flex items-center gap-3 text-left cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-emerald-300 dark:ring-emerald-700">
+              AE
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate">
+                  Alice (Engineering)
+                </span>
+                <span className="text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
+                  Engineer
+                </span>
+              </div>
+              <span className="text-[11px] text-neutral-500 dark:text-neutral-400 block truncate">
+                alice@ekos.app • Senior Software Engineer
+              </span>
+            </div>
+          </button>
+
+          {/* Bob (HR) */}
+          <button
+            type="button"
+            onClick={() => handleCompleteLogin('bob@ekos.app', 'persona_bob')}
+            className="w-full p-2.5 rounded-xl border border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-[#1A1B1F] transition-all flex items-center gap-3 text-left cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-purple-300 dark:ring-purple-700">
+              BH
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-neutral-900 dark:text-white truncate">
+                  Bob (HR)
+                </span>
+                <span className="text-[10px] font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.2 rounded border border-purple-200 dark:border-purple-800">
+                  HR Lead
+                </span>
+              </div>
+              <span className="text-[11px] text-neutral-500 dark:text-neutral-400 block truncate">
+                bob@ekos.app • HR Manager
               </span>
             </div>
           </button>

@@ -13,6 +13,7 @@ import {
   Sparkles,
   Database,
   FileText,
+  Unplug,
 } from 'lucide-react';
 import type { Connector, ConnectorDataItem, ConnectorPolicy } from '../../types';
 import { PlatformIcon } from '../ui/PlatformIcons';
@@ -45,6 +46,7 @@ export const ConnectorDetailView: React.FC<ConnectorDetailViewProps> = ({
   const [items, setItems] = useState<ConnectorDataItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedItem, setSelectedItem] = useState<ConnectorDataItem | null>(null);
@@ -116,6 +118,25 @@ export const ConnectorDetailView: React.FC<ConnectorDetailViewProps> = ({
       console.error('Sync failed:', err);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  // Disconnect connector
+  const handleDisconnectConnector = async () => {
+    if (!connector) return;
+    setIsDisconnecting(true);
+    try {
+      await api.disconnectConnector(connector.id);
+      setConnector((prev) => (prev ? { ...prev, connected: false, status: 'disconnected' } : null));
+      addNotification({
+        type: 'connector_connected',
+        title: `${connector.name} Disconnected`,
+        description: `${connector.name} integration has been safely disconnected.`,
+      });
+    } catch (err) {
+      console.error('Disconnect failed:', err);
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -257,6 +278,17 @@ export const ConnectorDetailView: React.FC<ConnectorDetailViewProps> = ({
               disabled={isSyncing}
             >
               {isSyncing ? 'Syncing...' : 'Re-sync Now'}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border-red-200 dark:border-red-900/50"
+              icon={<Unplug className="w-3.5 h-3.5" />}
+              onClick={handleDisconnectConnector}
+              disabled={isDisconnecting}
+            >
+              {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
             </Button>
 
             <Button

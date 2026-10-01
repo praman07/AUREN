@@ -20,10 +20,12 @@ import {
   PanelLeftClose,
   Network,
   BarChart3,
+  ArrowLeft,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../core/auth/store/useAuthStore';
 import { Button } from '../ui/button';
+import { api } from '../../services/api';
 
 export interface ChatConversation {
   id: string;
@@ -70,7 +72,7 @@ interface LeftRailProps {
 export const LeftRail: React.FC<LeftRailProps> = ({
   onTabChange,
   onNewChat,
-  conversations = [],
+  conversations: propsConversations = [],
   activeConversationId,
   onSelectConversation,
   onRenameConversation,
@@ -90,9 +92,30 @@ export const LeftRail: React.FC<LeftRailProps> = ({
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [fetchedConversations, setFetchedConversations] = useState<ChatConversation[]>([]);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
   const renameInputRef = useRef<HTMLInputElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  const conversations = propsConversations.length > 0 ? propsConversations : fetchedConversations;
+
+  const loadSidebarConversations = async () => {
+    try {
+      const list = await api.getConversations();
+      if (Array.isArray(list)) {
+        setFetchedConversations(list);
+      }
+    } catch (err) {
+      console.warn('Failed to load sidebar conversations:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadSidebarConversations();
+    const handleRefresh = () => loadSidebarConversations();
+    window.addEventListener('auren:refresh-conversations', handleRefresh);
+    return () => window.removeEventListener('auren:refresh-conversations', handleRefresh);
+  }, [location.pathname]);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -135,6 +158,7 @@ export const LeftRail: React.FC<LeftRailProps> = ({
     : null;
 
   const currentPath = location.pathname;
+  const isChatView = currentPath.startsWith('/chat');
 
   const navItems = [
     { id: 'dashboard', href: '/dashboard', label: 'Dashboard', icon: <BarChart3 className="w-4 h-4" /> },
@@ -161,9 +185,8 @@ export const LeftRail: React.FC<LeftRailProps> = ({
   const handleSelectConv = (id: string) => {
     if (onSelectConversation) {
       onSelectConversation(id);
-    } else {
-      navigate('/chat');
     }
+    navigate('/chat', { state: { conversationId: id } });
     if (onCloseMobile) onCloseMobile();
   };
 
@@ -173,12 +196,57 @@ export const LeftRail: React.FC<LeftRailProps> = ({
     setEditingTitle(conv.title);
   };
 
-  const handleSaveRename = (id: string, e?: React.FormEvent | React.MouseEvent) => {
+  const handleInternalRename = async (id: string, e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (editingTitle.trim() && onRenameConversation) {
-      onRenameConversation(id, editingTitle.trim());
+    const newTitle = editingTitle.trim();
+    if (!newTitle) {
+      setRenamingId(null);
+      return;
     }
+    if (onRenameConversation) {
+      onRenameConversation(id, newTitle);
+    }
+    setFetchedConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c))
+    );
     setRenamingId(null);
+    try {
+      await api.updateConversation(id, { title: newTitle });
+      window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
+    } catch (err) {
+      console.error('Failed to rename conversation:', err);
+    }
+  };
+
+  const handleInternalDelete = async (id: string) => {
+    if (onDeleteConversation) {
+      onDeleteConversation(id);
+    }
+    setFetchedConversations((prev) => prev.filter((c) => c.id !== id));
+    try {
+      await api.deleteConversation(id);
+      window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
+  };
+
+  const handleInternalTogglePin = async (id: string) => {
+    if (onTogglePinConversation) {
+      onTogglePinConversation(id);
+    }
+    const target = conversations.find((c) => c.id === id);
+    if (!target) return;
+    const newPinned = !target.pinned;
+    setFetchedConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, pinned: newPinned } : c))
+    );
+    try {
+      await api.updateConversation(id, { pinned: newPinned });
+      window.dispatchEvent(new CustomEvent('auren:refresh-conversations'));
+    } catch (err) {
+      console.error('Failed to pin conversation:', err);
+    }
   };
 
   if (isCollapsed && !isMobileOpen) {
@@ -200,21 +268,33 @@ export const LeftRail: React.FC<LeftRailProps> = ({
           isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
-        {/* Top Segment: Brand & Action & Nav & Chats */}
+        {/* Top Segment */}
         <div className="flex flex-col gap-3 min-h-0 flex-1">
-          {/* Logo & Brand & Collapse Button */}
-          <div className="flex items-center justify-between px-1.5 pt-1 pb-1">
-            <div
-              className="flex items-center gap-2.5 cursor-pointer group"
-              onClick={() => handleNavClick('/dashboard', 'dashboard')}
-            >
-              <div className="w-8 h-8 rounded-xl bg-[#18181B] dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center font-bold text-xs tracking-wider shadow-sm transition-transform group-hover:scale-105">
-                A
+          {/* Logo / Back Button & Collapse Button */}
+          <div className="flex items-center justify-between px-1 pt-0.5 pb-1">
+            {isChatView ? (
+              <button
+                type="button"
+                onClick={() => handleNavClick('/dashboard', 'dashboard')}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white bg-neutral-200/70 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
+                title="Back to Apps & Dashboard"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Back to Apps</span>
+              </button>
+            ) : (
+              <div
+                className="flex items-center gap-2.5 cursor-pointer group"
+                onClick={() => handleNavClick('/dashboard', 'dashboard')}
+              >
+                <div className="w-8 h-8 rounded-xl bg-[#18181B] dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center font-bold text-xs tracking-wider shadow-sm transition-transform group-hover:scale-105">
+                  A
+                </div>
+                <span className="font-semibold text-sm tracking-tight text-neutral-900 dark:text-neutral-100">
+                  AUREN
+                </span>
               </div>
-              <span className="font-semibold text-sm tracking-tight text-neutral-900 dark:text-neutral-100">
-                AUREN
-              </span>
-            </div>
+            )}
 
             {/* Close / Collapse Sidebar button */}
             {onToggleCollapse && (
@@ -237,10 +317,11 @@ export const LeftRail: React.FC<LeftRailProps> = ({
             icon={<Plus className="w-4 h-4 stroke-[2.5]" />}
             className="w-full justify-start pl-3.5 font-medium text-xs tracking-wide cursor-pointer shrink-0 rounded-xl"
             onClick={() => {
+              window.dispatchEvent(new CustomEvent('auren:start-new-chat'));
               if (onNewChat) {
                 onNewChat();
               } else {
-                navigate('/chat');
+                navigate('/chat', { state: { isNewChat: true, reset: Date.now() } });
               }
               if (onCloseMobile) onCloseMobile();
             }}
@@ -248,57 +329,57 @@ export const LeftRail: React.FC<LeftRailProps> = ({
             New Chat
           </Button>
 
-          {/* Primary Navigation */}
-          <nav className="flex flex-col gap-1 mt-0.5 shrink-0" aria-label="Main Navigation">
-            {navItems.map((item) => {
-              const isActive =
-                currentPath === item.href ||
-                (item.href === '/documents' && (currentPath.startsWith('/documents') || currentPath.startsWith('/docs'))) ||
-                (item.href === '/settings' && (currentPath.startsWith('/settings') || currentPath.startsWith('/integrations')));
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleNavClick(item.href, item.id)}
-                  className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer ${
-                    isActive
-                      ? 'bg-neutral-200/80 dark:bg-neutral-800/90 text-neutral-900 dark:text-white font-semibold shadow-2xs'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-100/90 dark:hover:bg-neutral-900/70'
-                  }`}
-                >
-                  <span
-                    className={`${
+          {/* Primary Navigation (shown only when NOT on AI Assistant /chat view) */}
+          {!isChatView && (
+            <nav className="flex flex-col gap-1 mt-0.5 shrink-0" aria-label="Main Navigation">
+              {navItems.map((item) => {
+                const isActive =
+                  currentPath === item.href ||
+                  (item.href === '/documents' && (currentPath.startsWith('/documents') || currentPath.startsWith('/docs'))) ||
+                  (item.href === '/settings' && (currentPath.startsWith('/settings') || currentPath.startsWith('/integrations')));
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleNavClick(item.href, item.id)}
+                    className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer ${
                       isActive
-                        ? 'text-neutral-900 dark:text-white'
-                        : 'text-neutral-500 dark:text-neutral-400'
+                        ? 'bg-neutral-200/80 dark:bg-neutral-800/90 text-neutral-900 dark:text-white font-semibold shadow-2xs'
+                        : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-100/90 dark:hover:bg-neutral-900/70'
                     }`}
                   >
-                    {item.icon}
-                  </span>
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {item.badge && (
-                    <span className="ml-auto px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
-                      {item.badge}
+                    <span
+                      className={`${
+                        isActive
+                          ? 'text-neutral-900 dark:text-white'
+                          : 'text-neutral-500 dark:text-neutral-400'
+                      }`}
+                    >
+                      {item.icon}
                     </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.badge && (
+                      <span className="ml-auto px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
 
-          {/* Divider */}
-          <div className="border-t border-neutral-200/60 dark:border-neutral-800/80 my-0.5 shrink-0" />
-
-          {/* Chats Section */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex items-center justify-between px-2.5 py-1 shrink-0">
-              <span className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
-                Chats
-              </span>
-              <span className="text-[10px] font-mono text-neutral-400">
-                {conversations.length}
-              </span>
-            </div>
+          {/* Chats Section (shown ONLY when on AI Assistant /chat view) */}
+          {isChatView && (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden mt-0.5">
+              <div className="flex items-center justify-between px-2.5 py-1 shrink-0">
+                <span className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider">
+                  Saved Chats
+                </span>
+                <span className="text-[10px] font-mono text-neutral-400">
+                  {conversations.length}
+                </span>
+              </div>
 
             {/* Scrollable Conversation List */}
             <div className="flex-1 overflow-y-auto space-y-0.5 pr-1 mt-0.5">
@@ -336,14 +417,14 @@ export const LeftRail: React.FC<LeftRailProps> = ({
                             value={editingTitle}
                             onChange={(e) => setEditingTitle(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveRename(c.id);
+                              if (e.key === 'Enter') handleInternalRename(c.id);
                               if (e.key === 'Escape') setRenamingId(null);
                             }}
                             className="flex-1 bg-white dark:bg-[#121316] border border-neutral-300 dark:border-neutral-700 rounded px-1.5 py-0.5 text-xs text-neutral-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500"
                           />
                           <button
                             type="button"
-                            onClick={(e) => handleSaveRename(c.id, e)}
+                            onClick={(e) => handleInternalRename(c.id, e)}
                             className="p-0.5 text-emerald-600 hover:text-emerald-700 cursor-pointer"
                           >
                             <Check className="w-3 h-3" />
@@ -367,27 +448,25 @@ export const LeftRail: React.FC<LeftRailProps> = ({
 
                           {/* Hover action buttons */}
                           <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity shrink-0">
-                            {onTogglePinConversation && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onTogglePinConversation(c.id);
-                                }}
-                                className={`p-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors cursor-pointer ${
-                                  c.pinned
-                                    ? 'text-blue-500'
-                                    : 'text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
-                                }`}
-                                title={c.pinned ? 'Unpin' : 'Pin'}
-                              >
-                                {c.pinned ? (
-                                  <PinOff className="w-3 h-3" />
-                                ) : (
-                                  <Pin className="w-3 h-3" />
-                                )}
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleInternalTogglePin(c.id);
+                              }}
+                              className={`p-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors cursor-pointer ${
+                                c.pinned
+                                  ? 'text-blue-500'
+                                  : 'text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
+                              }`}
+                              title={c.pinned ? 'Unpin' : 'Pin'}
+                            >
+                              {c.pinned ? (
+                                <PinOff className="w-3 h-3" />
+                              ) : (
+                                <Pin className="w-3 h-3" />
+                              )}
+                            </button>
 
                             <button
                               type="button"
@@ -398,19 +477,17 @@ export const LeftRail: React.FC<LeftRailProps> = ({
                               <Edit2 className="w-3 h-3" />
                             </button>
 
-                            {onDeleteConversation && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteConversation(c.id);
-                                }}
-                                className="p-0.5 text-neutral-400 hover:text-rose-500 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleInternalDelete(c.id);
+                              }}
+                              className="p-0.5 text-neutral-400 hover:text-rose-500 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
                         </>
                       )}
@@ -420,7 +497,8 @@ export const LeftRail: React.FC<LeftRailProps> = ({
               )}
             </div>
           </div>
-        </div>
+        )}
+      </div>
 
         {/* Bottom Segment: Theme Toggle & User Profile Popover */}
         <div

@@ -11,7 +11,7 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({
   className = 'w-5 h-5',
   size,
 }) => {
-  const normalized = platform.toLowerCase().replace(/[\s-_]/g, '');
+  const normalized = typeof platform === 'string' ? platform.toLowerCase().replace(/[\s-_]/g, '') : '';
   const style = size ? { width: `${size}px`, height: `${size}px` } : undefined;
 
   // 1. GitHub

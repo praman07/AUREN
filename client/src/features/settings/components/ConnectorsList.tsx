@@ -25,9 +25,9 @@ import {
   useGetGoogleAuthUrl,
   useGetGitHubAuthUrl
 } from '../api/connectorQueries';
-import { useAuthStore } from '../../../core/auth/store/useAuthStore';
 import { GitHubRepoPickerModal } from './GitHubRepoPickerModal';
 import { ConnectorPolicyModal } from './ConnectorPolicyModal';
+import { ConnectorCredentialModal } from './ConnectorCredentialModal';
 
 const iconMap: Record<string, React.ElementType> = {
   GITHUB: GitBranch,
@@ -47,7 +47,6 @@ const providerDescriptions: Record<string, string> = {
 export const ConnectorsList: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const isSuperAdmin = useAuthStore((state) => state.user?.isSuperAdmin);
 
   const { data: connectors, isLoading, isError, error } = useConnectors();
   const getGoogleAuthUrlMutation = useGetGoogleAuthUrl();
@@ -69,6 +68,9 @@ export const ConnectorsList: React.FC = () => {
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   const [policyModalConnectorId, setPolicyModalConnectorId] = useState<string | null>(null);
   const [policyModalRepos, setPolicyModalRepos] = useState<string[]>([]);
+
+  // Credential Modal state for direct token connectors
+  const [credentialModalTarget, setCredentialModalTarget] = useState<{ provider: string; name: string } | null>(null);
 
   // Handle OAuth Redirect URL Params
   useEffect(() => {
@@ -97,7 +99,7 @@ export const ConnectorsList: React.FC = () => {
     }
   }, [searchParams, navigate]);
 
-  const handleConnect = async (provider: string) => {
+  const handleConnect = async (provider: string, name: string) => {
     setNotification(null);
     if (provider === 'GOOGLE_DRIVE') {
       try {
@@ -137,23 +139,8 @@ export const ConnectorsList: React.FC = () => {
       return;
     }
 
-    // Demo/Fallback Connect for other providers
-    try {
-      setConnectingProvider(provider);
-      await connectMutation.mutateAsync({
-        provider,
-        accountId: `acc_${provider.toLowerCase()}_demo`,
-        accountEmail: `admin@${provider.toLowerCase()}.com`,
-        accessToken: `demo_token_${Date.now()}`,
-      });
-    } catch (e: any) {
-      setNotification({
-        type: 'error',
-        message: e?.message || `Failed to connect ${provider}.`,
-      });
-    } finally {
-      setConnectingProvider(null);
-    }
+    // Prompt user for real integration API credentials / tokens for Notion, Slack, Gmail, etc.
+    setCredentialModalTarget({ provider, name });
   };
 
   const handleDisconnect = async (connectorId: string) => {
@@ -351,91 +338,87 @@ export const ConnectorsList: React.FC = () => {
               </div>
 
               {/* ACTION BUTTONS */}
-              {isSuperAdmin ? (
-                <div className="flex items-center gap-2 shrink-0 self-end md:self-center flex-wrap">
-                  {isConnected && connector.account?.id && (
-                    <>
-                      {connector.provider === 'GITHUB' && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setRepoPickerConnectorId(connector.account!.id);
-                              setInitialSelectedRepos(connector.account?.metadata?.selectedRepos || []);
-                              setIsRepoPickerOpen(true);
-                            }}
-                            className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5"
-                            title="Select GitHub Repositories"
-                          >
-                            <FolderGit2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                            <span>Manage repositories</span>
-                          </button>
+              <div className="flex items-center gap-2 shrink-0 self-end md:self-center flex-wrap">
+                {isConnected && connector.account?.id && (
+                  <>
+                    {connector.provider === 'GITHUB' && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setRepoPickerConnectorId(connector.account!.id);
+                            setInitialSelectedRepos(connector.account?.metadata?.selectedRepos || []);
+                            setIsRepoPickerOpen(true);
+                          }}
+                          className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5"
+                          title="Select GitHub Repositories"
+                        >
+                          <FolderGit2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                          <span>Manage repositories</span>
+                        </button>
 
-                          <button
-                            onClick={() => {
-                              setPolicyModalConnectorId(connector.account!.id);
-                              setPolicyModalRepos(connector.account?.metadata?.selectedRepos || []);
-                              setIsPolicyModalOpen(true);
-                            }}
-                            className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5"
-                            title="Configure Connector Access Policies"
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                            <span>Manage access</span>
-                          </button>
-                        </>
-                      )}
+                        <button
+                          onClick={() => {
+                            setPolicyModalConnectorId(connector.account!.id);
+                            setPolicyModalRepos(connector.account?.metadata?.selectedRepos || []);
+                            setIsPolicyModalOpen(true);
+                          }}
+                          className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5"
+                          title="Configure Connector Access Policies"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                          <span>Manage access</span>
+                        </button>
+                      </>
+                    )}
 
-                      <button
-                        onClick={() => isThisGitHub ? handleGitHubSync(connector.account!.id) : handleSync(connector.account!.id)}
-                        disabled={isSyncingThis}
-                        className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5 disabled:opacity-50"
-                        title={isThisGitHub ? "Trigger GitHub Repository Knowledge Sync" : "Trigger Instant Knowledge Sync"}
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncingThis ? 'animate-spin text-blue-600' : ''}`} />
-                        <span>
-                          {isSyncingThis 
-                            ? 'Syncing...' 
-                            : isThisGitHub 
-                              ? 'Sync GitHub' 
-                              : 'Sync now'
-                          }
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={() => handleDisconnect(connector.account!.id)}
-                        disabled={disconnectMutation.isPending}
-                        className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5"
-                        title="Disconnect Integration"
-                      >
-                        <Unplug className="w-3.5 h-3.5" />
-                        <span>Disconnect</span>
-                      </button>
-                    </>
-                  )}
-
-                  {!isConnected && (
                     <button
-                      onClick={() => handleConnect(connector.provider)}
-                      disabled={isConnectingThis || connectMutation.isPending}
-                      className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-2xs flex items-center gap-2 disabled:opacity-50"
+                      onClick={() => isThisGitHub ? handleGitHubSync(connector.account!.id) : handleSync(connector.account!.id)}
+                      disabled={isSyncingThis}
+                      className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5 disabled:opacity-50"
+                      title={isThisGitHub ? "Trigger GitHub Repository Knowledge Sync" : "Trigger Instant Knowledge Sync"}
                     >
-                      {isConnectingThis ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Connecting...</span>
-                        </>
-                      ) : hasError ? (
-                        <span>Try again</span>
-                      ) : (
-                        <span>Connect {connector.name}</span>
-                      )}
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingThis ? 'animate-spin text-blue-600' : ''}`} />
+                      <span>
+                        {isSyncingThis 
+                          ? 'Syncing...' 
+                          : isThisGitHub 
+                            ? 'Sync GitHub' 
+                            : 'Sync now'
+                        }
+                      </span>
                     </button>
-                  )}
-                </div>
-              ) : (
-                <span className="text-xs text-slate-400 italic shrink-0">Read-Only View</span>
-              )}
+
+                    <button
+                      onClick={() => handleDisconnect(connector.account!.id)}
+                      disabled={disconnectMutation.isPending}
+                      className="px-3 py-2 rounded-lg text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 transition-all text-xs font-medium flex items-center gap-1.5"
+                      title="Disconnect Integration"
+                    >
+                      <Unplug className="w-3.5 h-3.5" />
+                      <span>Disconnect</span>
+                    </button>
+                  </>
+                )}
+
+                {!isConnected && (
+                  <button
+                    onClick={() => handleConnect(connector.provider, connector.name)}
+                    disabled={isConnectingThis || connectMutation.isPending}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-2xs flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isConnectingThis ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Connecting...</span>
+                      </>
+                    ) : hasError ? (
+                      <span>Try again</span>
+                    ) : (
+                      <span>Connect {connector.name}</span>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -471,6 +454,17 @@ export const ConnectorsList: React.FC = () => {
           isOpen={isPolicyModalOpen}
           onClose={() => setIsPolicyModalOpen(false)}
           selectedRepos={policyModalRepos}
+          onSuccessNotification={(msg) => setNotification({ type: 'success', message: msg })}
+        />
+      )}
+
+      {/* Real API Credential Modal for Notion, Slack, Gmail, etc. */}
+      {credentialModalTarget && (
+        <ConnectorCredentialModal
+          provider={credentialModalTarget.provider}
+          providerName={credentialModalTarget.name}
+          isOpen={Boolean(credentialModalTarget)}
+          onClose={() => setCredentialModalTarget(null)}
           onSuccessNotification={(msg) => setNotification({ type: 'success', message: msg })}
         />
       )}

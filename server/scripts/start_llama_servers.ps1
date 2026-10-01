@@ -1,4 +1,6 @@
-# AUREN - 3 Llama Servers Orchestrator (Chat: 8083, Embedding: 8081, Vision: 8082)
+# AUREN - Single Multimodal LLM Orchestrator (Generation: 8083, Embedding: 8081)
+# Qwen2.5-VL-3B-Instruct Q4_K_M on port 8083 (text + image)
+# nomic-embed-text on port 8081 (UNCHANGED)
 $ErrorActionPreference = "Continue"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -24,13 +26,13 @@ if (-not $llamaBin -or -not (Test-Path $llamaBin)) {
 }
 
 Write-Host "`n========================================================" -ForegroundColor Cyan
-Write-Host "   AUREN - Starting 3 Llama Servers (Chat, Embed, Vision)" -ForegroundColor Cyan
+Write-Host "   AUREN - Starting Multimodal LLM + Embedding Servers" -ForegroundColor Cyan
 Write-Host "========================================================`n" -ForegroundColor Cyan
 Write-Host "Binary: $llamaBin" -ForegroundColor Gray
 
-# 2. Stop any existing processes on ports 8081, 8082, 8083
-Write-Host "[1/5] Checking and clearing ports 8081, 8082, 8083..." -ForegroundColor Yellow
-$ports = @(8081, 8082, 8083)
+# 2. Stop any existing processes on ports 8081 and 8083
+Write-Host "[1/5] Checking and clearing ports 8081, 8083..." -ForegroundColor Yellow
+$ports = @(8081, 8082, 8083, 8084)
 foreach ($p in $ports) {
     try {
         $conns = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue
@@ -48,73 +50,65 @@ Start-Sleep -Seconds 1
 # 3. Model Resolution
 Write-Host "`n[2/5] Resolving Model Paths in $modelsDir..." -ForegroundColor Yellow
 
-$chatModel = "$modelsDir\ornith-9b.gguf"
-if (-not (Test-Path $chatModel)) {
-    $chatModel = "$modelsDir\qwen2.5-14b.gguf"
+# Generation Model: Qwen2.5-VL-3B-Instruct Q4_K_M (multimodal — text + vision)
+$genModel = "$modelsDir\Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf"
+$genMmproj = "$modelsDir\mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf"
+
+if (-not (Test-Path $genModel)) {
+    Write-Error "Generation model not found: $genModel"
+    Write-Host "Please run the download script first." -ForegroundColor Red
+    exit 1
+}
+if (-not (Test-Path $genMmproj)) {
+    Write-Error "Multimodal projector not found: $genMmproj"
+    Write-Host "Please run the download script first." -ForegroundColor Red
+    exit 1
 }
 
+# Embedding Model: nomic-embed-text (UNCHANGED)
 $embedModel = "$modelsDir\nomic-embed-text.gguf"
 if (-not (Test-Path $embedModel)) {
-    $embedModel = "$modelsDir\qwen3-embedding-8b.gguf"
+    Write-Error "Embedding model not found: $embedModel"
+    exit 1
 }
 
-$visionModel = "$modelsDir\qwen2.5-vl-7b-instruct-q4_k_m.gguf"
-$mmprojModel = "$modelsDir\mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf"
-$hasTrueVision = (Test-Path $visionModel) -and (Test-Path $mmprojModel)
+Write-Host "  Generation Model (8083): $(Split-Path -Leaf $genModel)" -ForegroundColor Green
+Write-Host "  Generation MMProj:       $(Split-Path -Leaf $genMmproj)" -ForegroundColor Green
+Write-Host "  Embedding  Model (8081): $(Split-Path -Leaf $embedModel) [UNCHANGED]" -ForegroundColor Green
 
-if (-not $hasTrueVision) {
-    $visionModel = $chatModel
-}
-
-Write-Host "  Chat Model:      $(Split-Path -Leaf $chatModel)" -ForegroundColor Green
-Write-Host "  Embedding Model: $(Split-Path -Leaf $embedModel)" -ForegroundColor Green
-Write-Host "  Vision Model:    $(Split-Path -Leaf $visionModel) $(if ($hasTrueVision) { '(Multimodal MMProj active)' } else { '(Fallback weights)' })" -ForegroundColor Green
-
-# 4. Launch Servers Detached via WMI
-Write-Host "`n[3/5] Spawning Detached Background Llama Server Instances..." -ForegroundColor Yellow
+# 4. Launch Servers
+Write-Host "`n[3/5] Spawning Server Instances..." -ForegroundColor Yellow
 
 function Start-DetachedServer {
     param(
         [string]$binPath,
-        [string]$argsStr,
-        [string]$logPath
+        [string]$argsStr
     )
-    $cmdLine = "cmd.exe /c `"`"$binPath`" $argsStr > `"$logPath`" 2>&1`""
-    $res = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $cmdLine }
-    return $res.ProcessId
+    $proc = Start-Process -FilePath $binPath -ArgumentList $argsStr -WindowStyle Hidden -PassThru
+    return $proc.Id
 }
 
-# Server 1: Chat Server (Port 8083)
-$chatLog = "$logsDir\llama_chat.log"
-$chatArgs = "-m `"$chatModel`" --port 8083 --host 127.0.0.1 -c 8192 -ngl 99 --parallel 2 --alias ornith:9b"
-Write-Host "  Launching Chat Server on port 8083..." -ForegroundColor Cyan
-$chatPid = Start-DetachedServer -binPath $llamaBin -argsStr $chatArgs -logPath $chatLog
+# Server 1: Generation (Multimodal) — Qwen2.5-VL-3B on Port 8083
+$genLog = "$logsDir\llama_generation.log"
+$genArgs = "-m `"$genModel`" --mmproj `"$genMmproj`" --port 8083 --host 127.0.0.1 -c 8192 -ngl 99 --parallel 2 --alias qwen2.5-vl-3b,qwen2.5-vl-3b-instruct --log-file `"$genLog`""
+Write-Host "  Launching Multimodal Generation Server on port 8083..." -ForegroundColor Cyan
+$genPid = Start-DetachedServer -binPath $llamaBin -argsStr $genArgs
 
-# Server 2: Embedding Server (Port 8081)
+# Server 2: Embedding — nomic-embed-text on Port 8081 (UNCHANGED)
 $embedLog = "$logsDir\llama_embed.log"
-$embedArgs = "-m `"$embedModel`" --port 8081 --host 127.0.0.1 --embedding -c 2048 -b 2048 -ub 2048 -ngl 99 --alias nomic-embed-text:latest,qwen3-embedding:8b"
-Write-Host "  Launching Embedding Server on port 8081..." -ForegroundColor Cyan
-$embedPid = Start-DetachedServer -binPath $llamaBin -argsStr $embedArgs -logPath $embedLog
-
-# Server 3: Vision Server (Port 8082)
-$visionLog = "$logsDir\llama_vision.log"
-if ($hasTrueVision) {
-    $visionArgs = "-m `"$visionModel`" --mmproj `"$mmprojModel`" --port 8082 --host 127.0.0.1 -c 16384 -np 1 -ngl 0 --alias qwen2.5-vl-7b-instruct-q4_k_m.gguf"
-} else {
-    $visionArgs = "-m `"$visionModel`" --port 8082 --host 127.0.0.1 -c 16384 -np 1 -ngl 0 --alias qwen2.5-vl-7b-instruct-q4_k_m.gguf"
-}
-Write-Host "  Launching Vision Server on port 8082..." -ForegroundColor Cyan
-$visionPid = Start-DetachedServer -binPath $llamaBin -argsStr $visionArgs -logPath $visionLog
+$embedArgs = "-m `"$embedModel`" --port 8081 --host 127.0.0.1 --embedding -c 2048 -b 2048 -ub 2048 -ngl 99 --alias nomic-embed-text:latest --log-file `"$embedLog`""
+Write-Host "  Launching Embedding Server on port 8081 (UNCHANGED)..." -ForegroundColor Cyan
+$embedPid = Start-DetachedServer -binPath $llamaBin -argsStr $embedArgs
 
 # 5. Health Check Verification
 Write-Host "`n[4/5] Waiting for servers to initialize..." -ForegroundColor Yellow
 
 function Test-Endpoint {
-    param([string]$url, [int]$timeoutSec = 60)
+    param([string]$url, [int]$timeoutSec = 90)
     $startTime = Get-Date
     while ((Get-Date) -lt $startTime.AddSeconds($timeoutSec)) {
         try {
-            $resp = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop
+            $resp = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
             if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 400) {
                 return $true
             }
@@ -125,9 +119,8 @@ function Test-Endpoint {
     return $false
 }
 
-$embedOk = Test-Endpoint "http://127.0.0.1:8081/health" 30
-$chatOk = Test-Endpoint "http://127.0.0.1:8083/health" 45
-$visionOk = Test-Endpoint "http://127.0.0.1:8082/health" 60
+$genOk    = Test-Endpoint "http://127.0.0.1:8083/health" 90
+$embedOk  = Test-Endpoint "http://127.0.0.1:8081/health" 30
 
 function Get-PortPid([int]$port) {
     $c = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -135,21 +128,24 @@ function Get-PortPid([int]$port) {
     return "N/A"
 }
 
-$chatPortPid = Get-PortPid 8083
+$genPortPid   = Get-PortPid 8083
 $embedPortPid = Get-PortPid 8081
-$visionPortPid = Get-PortPid 8082
 
 Write-Host "`n[5/5] Verification Results:" -ForegroundColor Yellow
-Write-Host "  ----------------------------------------------------------------" -ForegroundColor Gray
-Write-Host "  Service   | Port | PID   | Status" -ForegroundColor Gray
-Write-Host "  ----------------------------------------------------------------" -ForegroundColor Gray
-Write-Host ("  Chat      | 8083 | {0,-5} | {1}" -f $chatPortPid, $(if ($chatOk) { "ONLINE (OK)" } else { "STARTING/FAILED" })) -ForegroundColor $(if ($chatOk) { "Green" } else { "Red" })
-Write-Host ("  Embedding | 8081 | {0,-5} | {1}" -f $embedPortPid, $(if ($embedOk) { "ONLINE (OK)" } else { "STARTING/FAILED" })) -ForegroundColor $(if ($embedOk) { "Green" } else { "Red" })
-Write-Host ("  Vision    | 8082 | {0,-5} | {1}" -f $visionPortPid, $(if ($visionOk) { "ONLINE (OK)" } else { "STARTING/FAILED" })) -ForegroundColor $(if ($visionOk) { "Green" } else { "Red" })
-Write-Host "  ----------------------------------------------------------------`n" -ForegroundColor Gray
+Write-Host "  -----------------------------------------------------------------" -ForegroundColor Gray
+Write-Host "  Service     | Port | PID   | Status" -ForegroundColor Gray
+Write-Host "  -----------------------------------------------------------------" -ForegroundColor Gray
+Write-Host ("  Generation  | 8083 | {0,-5} | {1}" -f $genPortPid,   $(if ($genOk)   { "ONLINE (OK) [Qwen2.5-VL-3B Q4_K_M + mmproj]" } else { "STARTING/FAILED" })) -ForegroundColor $(if ($genOk)   { "Green" } else { "Red" })
+Write-Host ("  Embedding   | 8081 | {0,-5} | {1}" -f $embedPortPid, $(if ($embedOk) { "ONLINE (OK) [nomic-embed-text - UNCHANGED]" }   else { "STARTING/FAILED" })) -ForegroundColor $(if ($embedOk) { "Green" } else { "Red" })
+Write-Host "  -----------------------------------------------------------------`n" -ForegroundColor Gray
 
-if ($chatOk -and $embedOk -and $visionOk) {
-    Write-Host "🎉 All 3 Llama Servers are ACTIVE and healthy in the background!" -ForegroundColor Green
+if ($genOk -and $embedOk) {
+    Write-Host "All AUREN servers are ACTIVE and healthy!" -ForegroundColor Green
+    Write-Host "  Generation: http://127.0.0.1:8083  (Qwen2.5-VL-3B-Instruct Q4_K_M)" -ForegroundColor Green
+    Write-Host "  Embedding:  http://127.0.0.1:8081  (nomic-embed-text - UNCHANGED)" -ForegroundColor Green
 } else {
-    Write-Host "⚠️ Some servers are still initializing. Check logs in $logsDir." -ForegroundColor Yellow
+    Write-Host "Some servers are still initializing. Check logs in $logsDir." -ForegroundColor Yellow
+    if (-not $genOk) {
+        Write-Host "  Generation log: $genLog" -ForegroundColor Yellow
+    }
 }

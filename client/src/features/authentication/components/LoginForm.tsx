@@ -111,6 +111,13 @@ export const LoginForm: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={() => { setEmail('praman.bhogal@northstar-test.local'); setPassword('password123'); }}
+            className="px-2.5 py-1 bg-muted hover:bg-muted/80 text-foreground text-xs rounded transition-colors"
+          >
+            Praman Bhogal (Dept Head)
+          </button>
+          <button
+            type="button"
             onClick={() => { setEmail('alice@ekos.app'); setPassword('alice12345'); }}
             className="px-2.5 py-1 bg-muted hover:bg-muted/80 text-foreground text-xs rounded transition-colors"
           >
